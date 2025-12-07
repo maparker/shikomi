@@ -1,0 +1,57 @@
+# --- macOS System Files ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# --- Editors & IDEs ---
+.vscode/
+.idea/
+*.swp
+*~
+
+# --- Secrets & Local Configs (Safety Net) ---
+.env
+.env.local
+.env.*.local
+.jamf_secrets
+secrets.sh
+config.local
+*_secrets
+*_secrets.*
+*.key
+*.pem
+*.p8
+*.p12
+token.json
+*auth*.json
+appstoreauth.json
+
+# --- Binary Artifacts (Don't commit these!) ---
+*.dmg
+*.pkg
+*.zip
+*.tar.gz
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Testing ---
+test_output/
+.pytest_cache/
+
+# --- Version Control ---
+.git/
+
+# --- Build Artifacts ---
+build/
+dist/
+*.egg-info/
