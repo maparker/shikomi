@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ################################################################################
-# SCRIPT: script_creator_pro.sh
-# DESCRIPTION:  Smart Jamf Script Generator
+# SCRIPT: sabrage.sh
+# DESCRIPTION:  Smart macOS/MDM Script Generator
 #               - Detects if you are in an existing Git Repo (Monorepo mode)
 #               - If not, creates a new Repo/Project (Micro-repo mode)
 #               - Generates versioned scripts with semantic versioning
@@ -34,7 +34,7 @@ if git rev-parse --is-inside-work-tree &> /dev/null; then
     IS_MONOREPO=true
     REPO_ROOT=$(git rev-parse --show-toplevel)
     echo "=============================================="
-    echo "   Jamf Script Generator (Monorepo Mode)     "
+    echo "   macOS Script Generator (Monorepo Mode)    "
     echo "=============================================="
     echo "Detected existing Git Repository: $(basename "$REPO_ROOT")"
 
@@ -52,7 +52,7 @@ if git rev-parse --is-inside-work-tree &> /dev/null; then
     fi
 else
     echo "=============================================="
-    echo "  Jamf Script Generator (New Project Mode)   "
+    echo "  macOS Script Generator (New Project Mode)  "
     echo "=============================================="
     echo "No existing Git repo detected. Creating new project."
 
@@ -86,21 +86,21 @@ for i in {4..11}; do
     echo "--- Parameter $i ---"
     read -rp "Label (e.g. 'Target Dept'): " param_label
     [[ -z "$param_label" ]] && break
-    
+
     var_name=$(echo "$param_label" | tr '[:lower:]' '[:upper:]' | tr ' ' '_' | sed 's/[^A-Z0-9_]//g')
-    
+
     read -rp "Is this a secret? (y/n): " is_secret
-    
+
     if [[ "$is_secret" =~ ^[Yy] ]]; then
         SECRETS_USED=true
         BLOCK_HEADER+=("#   $var_name (Jamf: \$$i)")
         BLOCK_NORMALIZATION+=("$NORM_LINE")
         BLOCK_NORMALIZATION+=("${var_name}=\"\${${var_name}:-\$LOCAL_${var_name}}\"")
-        
+
         # --- NEW SMART CHECK LOGIC START ---
         SECRETS_FILE="$HOME/.jamf_secrets"
         LOCAL_VAR_NAME="LOCAL_${var_name}"
-        
+
         # Check if secrets file exists AND if the variable is defined in it
         if [[ -f "$SECRETS_FILE" ]] && grep -q "^${LOCAL_VAR_NAME}=" "$SECRETS_FILE"; then
             echo "   Found existing local secret: $LOCAL_VAR_NAME"
@@ -350,7 +350,7 @@ cat > "$BUMP_PATH" << 'BUMP_EOF'
 
 ################################################################################
 # SCRIPT: bump_version.sh
-# DESCRIPTION: Semantic version bumping utility for Jamf scripts
+# DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump_version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
 #

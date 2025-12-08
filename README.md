@@ -44,7 +44,7 @@ git clone https://github.com/YOUR_USERNAME/sabrage.git
 cd sabrage
 
 # Make scripts executable
-chmod +x script_creator_pro.sh bump_version.sh add_security_tools.sh
+chmod +x sabrage.sh bump_version.sh add_security_tools.sh
 
 # Optional: Add to PATH
 echo 'export PATH="$PATH:$HOME/Documents/Code/sabrage"' >> ~/.zshrc
@@ -55,7 +55,7 @@ source ~/.zshrc
 
 ```bash
 # Create a new script
-./script_creator_pro.sh my_awesome_script
+./sabrage.sh my_awesome_script
 
 # Follow the interactive prompts:
 # 1. Define MDM parameters ($4-$11)
@@ -66,10 +66,10 @@ source ~/.zshrc
 ### Example Session
 
 ```bash
-$ ./script_creator_pro.sh install_app
+$ ./sabrage.sh install_app
 
 ==============================================
-   Jamf Script Generator (Monorepo Mode)
+   macOS Script Generator (Monorepo Mode)
 ==============================================
 
 --- Parameter 4 ---
@@ -102,7 +102,7 @@ Selection: 1 2 4
 
 ## Core Components
 
-### 1. `script_creator_pro.sh`
+### 1. `sabrage.sh`
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
@@ -309,7 +309,7 @@ brew install gh pre-commit gitleaks
 
 1. **Generate Script**
    ```bash
-   ./script_creator_pro.sh my_feature
+   ./sabrage.sh my_feature
    ```
 
 2. **Implement Logic**

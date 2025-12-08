@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of Sabrage script generator
-- Interactive wizard for MDM parameter collection ($4-$11)
+- Interactive wizard for MDM parameter collection (supports Jamf Pro $4-$11)
 - Standard macOS variables library (12 pre-configured variables)
 - Static configuration variables support
 - Secrets management via `~/.jamf_secrets`
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version validation across script, README, and Git tags
 
 ### Core Components
-- `script_creator_pro.sh` - Main script generator
+- `sabrage.sh` - Main script generator
 - `bump_version.sh` - Semantic version management utility
 - `add_security_tools.sh` - Security tooling setup
 
