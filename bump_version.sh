@@ -1,7 +1,10 @@
 #!/bin/bash
 
 ################################################################################
-# SCRIPT: bump_version.sh
+# SCRIPT:      bump_version.sh
+# VERSION:     1.0.0
+# AUTHOR:      Matthew Parker
+# DATE:        2025-12-07
 # DESCRIPTION: Semantic version bumping utility for versioned scripts
 #
 # USAGE: ./bump_version.sh <SCRIPT_FILE> <major|minor|patch> "Change description"
@@ -10,8 +13,36 @@
 #   ./bump_version.sh app_installer.sh patch "Fixed bug"
 #   ./bump_version.sh backup_tool.sh minor "Added new feature"
 ################################################################################
+# CHANGELOG
+# 1.0.0 - 2025-12-07 - Initial versioned release
+################################################################################
+
+# --- Script Metadata ---
+readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_NAME="bump_version"
 
 set -euo pipefail
+
+# --- Version/Help Check ---
+if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
+    echo "bump_version v$SCRIPT_VERSION"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+    echo "bump_version v$SCRIPT_VERSION - Semantic version bumping utility"
+    echo ""
+    echo "Usage: $0 <script_file.sh> <major|minor|patch> \"Change description\""
+    echo ""
+    echo "Examples:"
+    echo "  $0 app_installer.sh patch \"Fixed parameter validation\""
+    echo "  $0 backup_tool.sh minor \"Added email notifications\""
+    echo ""
+    echo "Options:"
+    echo "  -v, --version    Show version"
+    echo "  -h, --help       Show this help"
+    exit 0
+fi
 
 if [[ $# -ne 3 ]]; then
     echo "Usage: $0 <script_file.sh> <major|minor|patch> \"Change description\""

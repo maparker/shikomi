@@ -1,15 +1,47 @@
 #!/bin/bash
 
 ################################################################################
-# SCRIPT: add_security_tools.sh
+# SCRIPT:      add_security_tools.sh
+# VERSION:     1.0.0
+# AUTHOR:      Matthew Parker
+# DATE:        2025-12-07
 # DESCRIPTION: Adds security tools and checks to an existing Git repository
 #              - Pre-commit hooks (gitleaks, shellcheck)
 #              - GitHub Actions workflows
 #              - Pre-push version checks
 #              - Enhanced .gitignore
 ################################################################################
+# CHANGELOG
+# 1.0.0 - 2025-12-07 - Initial versioned release
+################################################################################
+
+# --- Script Metadata ---
+readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_NAME="add_security_tools"
 
 set -euo pipefail
+
+# --- Version/Help Check ---
+if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
+    echo "add_security_tools v$SCRIPT_VERSION"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+    echo "add_security_tools v$SCRIPT_VERSION - Security tools installer"
+    echo ""
+    echo "Usage: $0"
+    echo ""
+    echo "Adds security tools to your Git repository:"
+    echo "  - Pre-commit hooks (gitleaks, shellcheck)"
+    echo "  - GitHub Actions workflows"
+    echo "  - Enhanced .gitignore"
+    echo ""
+    echo "Options:"
+    echo "  -v, --version    Show version"
+    echo "  -h, --help       Show this help"
+    exit 0
+fi
 
 echo "=============================================="
 echo "   Adding Security Tools to Repository       "

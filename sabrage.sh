@@ -1,15 +1,42 @@
 #!/bin/bash
 
 ################################################################################
-# SCRIPT: sabrage.sh
-# DESCRIPTION:  Smart macOS/MDM Script Generator
-#               - Detects if you are in an existing Git Repo (Monorepo mode)
-#               - If not, creates a new Repo/Project (Micro-repo mode)
-#               - Generates versioned scripts with semantic versioning
-#               - Initializes Git + Pre-Commit Hooks + GitHub integration
+# SCRIPT:      sabrage.sh
+# VERSION:     1.0.0
+# AUTHOR:      Matthew Parker
+# DATE:        2025-12-07
+# DESCRIPTION: Smart macOS/MDM Script Generator
+#              - Detects if you are in an existing Git Repo (Monorepo mode)
+#              - If not, creates a new Repo/Project (Micro-repo mode)
+#              - Generates versioned scripts with semantic versioning
+#              - Initializes Git + Pre-Commit Hooks + GitHub integration
+################################################################################
+# CHANGELOG
+# 1.0.0 - 2025-12-07 - Initial release as Sabrage (rebranded from script_creator_pro)
 ################################################################################
 
-# --- 0. Prerequisites Check ---
+# --- Script Metadata ---
+readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_NAME="sabrage"
+
+# --- 0. Version/Help Check ---
+if [[ "$1" == "--version" ]] || [[ "$1" == "-v" ]]; then
+    echo "Sabrage v$SCRIPT_VERSION"
+    exit 0
+fi
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    echo "Sabrage v$SCRIPT_VERSION - Smart macOS/MDM Script Generator"
+    echo ""
+    echo "Usage: $(basename "$0") <script_name>"
+    echo ""
+    echo "Options:"
+    echo "  -v, --version    Show version"
+    echo "  -h, --help       Show this help"
+    exit 0
+fi
+
+# --- 1. Prerequisites Check ---
 if ! command -v gh &> /dev/null; then
     echo "Warning: GitHub CLI ('gh') not installed. Remote repo creation will be skipped."
 fi
@@ -17,7 +44,7 @@ if ! command -v pre-commit &> /dev/null; then
     echo "Warning: 'pre-commit' not installed. Security hooks will be skipped."
 fi
 
-# --- 1. Context Awareness: Detect Existing Git Repo ---
+# --- 2. Context Awareness: Detect Existing Git Repo ---
 SCRIPT_NAME="$1"
 
 if [[ -z "$SCRIPT_NAME" ]]; then

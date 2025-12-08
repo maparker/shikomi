@@ -102,14 +102,20 @@ Selection: 1 2 4
 
 ## Core Components
 
-### 1. `sabrage.sh`
+### 1. `sabrage.sh` (v1.0.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
 - Standard macOS variable selection
 - Secrets management setup
 
-### 2. `bump_version.sh`
+**Version info:**
+```bash
+./sabrage.sh --version  # Show version
+./sabrage.sh --help     # Show usage
+```
+
+### 2. `bump_version.sh` (v1.0.0)
 Semantic version management utility:
 ```bash
 # Auto-detect script and bump version
@@ -121,12 +127,18 @@ Semantic version management utility:
 ./bump_version.sh my_script.sh patch "Bug fix"
 ```
 
-### 3. `add_security_tools.sh`
+### 3. `add_security_tools.sh` (v1.0.0)
 Security tooling setup for repositories:
 - Installs Gitleaks for secret scanning
 - Configures pre-commit hooks
 - Sets up GitHub Actions workflows
 - Adds security-focused `.gitignore` rules
+
+**Version info:**
+```bash
+./add_security_tools.sh --version  # Show version
+./add_security_tools.sh --help     # Show usage
+```
 
 ---
 
