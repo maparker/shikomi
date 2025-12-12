@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Sabrage will be documented in this file.
+All notable changes to Shikomi will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2025-12-07
 
 ### Added
-- Initial release of Sabrage script generator
+- Initial release of Shikomi script generator
 - Interactive wizard for MDM parameter collection (supports Jamf Pro $4-$11)
 - Standard macOS variables library (12 pre-configured variables)
 - Static configuration variables support
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version validation across script, README, and Git tags
 
 ### Core Components
-- `sabrage.sh` - Main script generator
+- `shikomi.sh` - Main script generator
 - `bump_version.sh` - Semantic version management utility
 - `add_security_tools.sh` - Security tooling setup
 

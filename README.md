@@ -1,8 +1,8 @@
-# Sabrage 🍾⚔️
+# Shikomi 🔪
 
 **Smart macOS Script Generator for MDM Automation**
 
-Sabrage is an intelligent script scaffolding tool that generates production-ready macOS management scripts with versioning, Git workflows, and best practices built-in. Like opening champagne with a sword - precise, elegant, and celebratory.
+Shikomi is an intelligent script scaffolding tool that generates production-ready macOS management scripts with versioning, Git workflows, and best practices built-in. Named after the Japanese culinary term for preparation and mise en place - the foundation of great execution.
 
 ---
 
@@ -40,14 +40,14 @@ Sabrage is an intelligent script scaffolding tool that generates production-read
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/sabrage.git
-cd sabrage
+git clone https://github.com/YOUR_USERNAME/shikomi.git
+cd shikomi
 
 # Make scripts executable
-chmod +x sabrage.sh bump_version.sh add_security_tools.sh
+chmod +x shikomi.sh bump_version.sh add_security_tools.sh
 
 # Optional: Add to PATH
-echo 'export PATH="$PATH:$HOME/Documents/Code/sabrage"' >> ~/.zshrc
+echo 'export PATH="$PATH:$HOME/Documents/Code/shikomi"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
@@ -55,7 +55,7 @@ source ~/.zshrc
 
 ```bash
 # Create a new script
-./sabrage.sh my_awesome_script
+./shikomi.sh my_awesome_script
 
 # Follow the interactive prompts:
 # 1. Define MDM parameters ($4-$11)
@@ -66,7 +66,7 @@ source ~/.zshrc
 ### Example Session
 
 ```bash
-$ ./sabrage.sh install_app
+$ ./shikomi.sh install_app
 
 ==============================================
    macOS Script Generator (Monorepo Mode)
@@ -102,7 +102,7 @@ Selection: 1 2 4
 
 ## Core Components
 
-### 1. `sabrage.sh` (v1.0.0)
+### 1. `shikomi.sh` (v1.0.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
@@ -111,8 +111,8 @@ Main script generator with intelligent wizards for:
 
 **Version info:**
 ```bash
-./sabrage.sh --version  # Show version
-./sabrage.sh --help     # Show usage
+./shikomi.sh --version  # Show version
+./shikomi.sh --help     # Show usage
 ```
 
 ### 2. `bump_version.sh` (v1.0.0)
@@ -321,7 +321,7 @@ brew install gh pre-commit gitleaks
 
 1. **Generate Script**
    ```bash
-   ./sabrage.sh my_feature
+   ./shikomi.sh my_feature
    ```
 
 2. **Implement Logic**
@@ -372,7 +372,7 @@ Contributions welcome! Please:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Use Sabrage itself to generate your scripts
+3. Use Shikomi itself to generate your scripts
 4. Commit with conventional commits (`feat:`, `fix:`, `docs:`)
 5. Push and open a Pull Request
 
@@ -386,15 +386,15 @@ MIT License - See [LICENSE](LICENSE) for details
 
 ## Name Origin
 
-**Sabrage** (sah-BRAHJ) - The French art of opening champagne with a sword. Like this tool, sabrage requires precision, confidence, and celebrates new beginnings.
+**Shikomi** (仕込み, shee-koh-mee) - A Japanese culinary term meaning "preparation" or "mise en place" - the meticulous prep work that chefs do before service begins. Like this tool, shikomi emphasizes proper preparation, organization, and building the foundation for flawless execution.
 
 ---
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/sabrage/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/sabrage/discussions)
+- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/shikomi/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/shikomi/discussions)
 
 ---
 
-**Made with ⚔️ by macOS admins, for macOS admins**
+**Made with 🔪 by macOS admins, for macOS admins**

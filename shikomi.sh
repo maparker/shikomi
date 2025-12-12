@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# SCRIPT:      sabrage.sh
+# SCRIPT:      shikomi.sh
 # VERSION:     1.0.0
 # AUTHOR:      Matthew Parker
 # DATE:        2025-12-07
@@ -12,21 +12,21 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
-# 1.0.0 - 2025-12-07 - Initial release as Sabrage (rebranded from script_creator_pro)
+# 1.0.0 - 2025-12-07 - Initial release as Shikomi (rebranded from script_creator_pro)
 ################################################################################
 
 # --- Script Metadata ---
 readonly SCRIPT_VERSION="1.0.0"
-readonly SCRIPT_NAME="sabrage"
+readonly SCRIPT_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
 if [[ "$1" == "--version" ]] || [[ "$1" == "-v" ]]; then
-    echo "Sabrage v$SCRIPT_VERSION"
+    echo "Shikomi v$SCRIPT_VERSION"
     exit 0
 fi
 
 if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
-    echo "Sabrage v$SCRIPT_VERSION - Smart macOS/MDM Script Generator"
+    echo "Shikomi v$SCRIPT_VERSION - Smart macOS/MDM Script Generator"
     echo ""
     echo "Usage: $(basename "$0") <script_name>"
     echo ""
