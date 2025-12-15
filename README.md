@@ -40,7 +40,7 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/shikomi.git
+git clone https://github.com/maparker/shikomi.git
 cd shikomi
 
 # Make scripts executable
@@ -358,7 +358,6 @@ brew install gh pre-commit gitleaks
 ## Roadmap
 
 - [ ] **MDM-Agnostic Mode** - Support for Intune, Kandji, Mosyle
-- [ ] **Windows Support** - PowerShell script generation
 - [ ] **VS Code Extension** - Native IDE integration
 - [ ] **Template Library** - Pre-built script templates
 - [ ] **Script Testing Framework** - Automated testing utilities
@@ -392,8 +391,8 @@ MIT License - See [LICENSE](LICENSE) for details
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/shikomi/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/shikomi/discussions)
+- **Issues**: [GitHub Issues](https://github.com/maparker/shikomi/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/maparker/shikomi/discussions)
 
 ---
 
