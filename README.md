@@ -1,4 +1,4 @@
-# Shikomi 🔪
+# Shikomi🔪
 
 **Smart macOS Script Generator for MDM Automation**
 
@@ -8,25 +8,25 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 
 ## Features
 
-✨ **Interactive Script Generation**
+[*] **Interactive Script Generation**
 - Guided wizard for parameter collection
 - Support for MDM parameters ($4-$11 for Jamf Pro)
 - Built-in secrets management via `~/.jamf_secrets`
 - Standard macOS variable library (serial number, logged in user, etc.)
 
-📦 **Production-Ready Output**
+[+] **Production-Ready Output**
 - Semantic versioning (SemVer) built-in
 - Automatic README and CHANGELOG generation
 - Version bumping utility included
 - Security checks via pre-commit hooks
 
-🔒 **Security First**
+[#] **Security First**
 - Gitleaks integration to prevent secret commits
 - Smart secret detection and masking
 - 1Password CLI integration support
 - Configurable `.gitignore` for sensitive files
 
-🌳 **Git Workflow Intelligence**
+[~] **Git Workflow Intelligence**
 - Monorepo and micro-repo modes
 - Feature branch creation
 - GitHub integration via `gh` CLI
@@ -95,7 +95,7 @@ Selection: 1 2 4
   Added: LOGGED_IN_USER
   Added: OS_VERSION
 
-✅ Script generated: install_app.sh (v1.0.0)
+[✓] Script generated: install_app.sh (v1.0.0)
 ```
 
 ---
@@ -346,12 +346,12 @@ brew install gh pre-commit gitleaks
 
 ### Security Guidelines
 
-- ✅ **DO**: Store secrets in `~/.jamf_secrets` or 1Password
-- ✅ **DO**: Mark sensitive parameters as secrets
-- ✅ **DO**: Use pre-commit hooks
-- ❌ **DON'T**: Hardcode credentials in scripts
-- ❌ **DON'T**: Commit `.env` or `*_secrets` files
-- ❌ **DON'T**: Skip secret detection warnings
+- [✓] **DO**: Store secrets in `~/.jamf_secrets` or 1Password
+- [✓] **DO**: Mark sensitive parameters as secrets
+- [✓] **DO**: Use pre-commit hooks
+- [X] **DON'T**: Hardcode credentials in scripts
+- [X] **DON'T**: Commit `.env` or `*_secrets` files
+- [X] **DON'T**: Skip secret detection warnings
 
 ---
 
@@ -397,4 +397,4 @@ MIT License - See [LICENSE](LICENSE) for details
 
 ---
 
-**Made with 🔪 by macOS admins, for macOS admins**
+**Made 🔪 by macOS admins, for macOS admins**

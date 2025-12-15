@@ -3,7 +3,7 @@
 ################################################################################
 # SCRIPT:      shikomi.sh
 # VERSION:     1.0.0
-# AUTHOR:      Matthew Parker
+# AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
 #              - Detects if you are in an existing Git Repo (Monorepo mode)
