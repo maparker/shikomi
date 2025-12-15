@@ -3,7 +3,7 @@
 ################################################################################
 # SCRIPT:      bump_version.sh
 # VERSION:     1.0.0
-# AUTHOR:      Matthew Parker
+# AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Semantic version bumping utility for versioned scripts
 #

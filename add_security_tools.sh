@@ -3,7 +3,7 @@
 ################################################################################
 # SCRIPT:      add_security_tools.sh
 # VERSION:     1.0.0
-# AUTHOR:      Matthew Parker
+# AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Adds security tools and checks to an existing Git repository
 #              - Pre-commit hooks (gitleaks, shellcheck)
