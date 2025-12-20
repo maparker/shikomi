@@ -38,24 +38,50 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 
 ### Installation
 
+#### Option 1: Install to PATH (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/maparker/shikomi.git
+cd shikomi
+
+# Run the installer (installs to ~/.local/bin)
+./install.sh
+
+# Or for system-wide installation (requires sudo)
+sudo ./install.sh --system
+
+# Add ~/.local/bin to PATH if not already (for user installation)
+echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+After installation, you can run commands from anywhere:
+```bash
+shikomi my_awesome_script
+bump-version my_script.sh patch "Fixed bug"
+```
+
+#### Option 2: Run from Repository
+
 ```bash
 # Clone the repository
 git clone https://github.com/maparker/shikomi.git
 cd shikomi
 
 # Make scripts executable
-chmod +x shikomi.sh bump_version.sh add_security_tools.sh
+chmod +x shikomi.sh bump-version.sh add_security_tools.sh
 
-# Optional: Add to PATH
-echo 'export PATH="$PATH:$HOME/Documents/Code/shikomi"' >> ~/.zshrc
-source ~/.zshrc
+# Use with ./
+./shikomi.sh my_awesome_script
+./bump-version.sh my_script.sh patch "Fixed bug"
 ```
 
 ### Basic Usage
 
 ```bash
 # Create a new script
-./shikomi.sh my_awesome_script
+shikomi my_awesome_script
 
 # Follow the interactive prompts:
 # 1. Define MDM parameters ($4-$11)
@@ -66,7 +92,7 @@ source ~/.zshrc
 ### Example Session
 
 ```bash
-$ ./shikomi.sh install_app
+$ shikomi install_app
 
 ==============================================
    macOS Script Generator (Monorepo Mode)
@@ -102,7 +128,7 @@ Selection: 1 2 4
 
 ## Core Components
 
-### 1. `shikomi.sh` (v1.0.0)
+### 1. `shikomi` (v1.1.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
@@ -111,20 +137,20 @@ Main script generator with intelligent wizards for:
 
 **Version info:**
 ```bash
-./shikomi.sh --version  # Show version
-./shikomi.sh --help     # Show usage
+shikomi --version  # Show version
+shikomi --help     # Show usage
 ```
 
-### 2. `bump_version.sh` (v1.0.0)
+### 2. `bump-version` (v1.2.0)
 Semantic version management utility:
 ```bash
-# Auto-detect script and bump version
-./bump_version.sh patch "Fixed bug in user detection"
-./bump_version.sh minor "Added notification support"
-./bump_version.sh major "Breaking: Changed API interface"
+# Initialize versioning for existing scripts
+bump-version my_script.sh init "Initial versioned release"
 
-# Or specify script explicitly
-./bump_version.sh my_script.sh patch "Bug fix"
+# Bump version with change description
+bump-version my_script.sh patch "Fixed bug in user detection"
+bump-version my_script.sh minor "Added notification support"
+bump-version my_script.sh major "Breaking: Changed API interface"
 ```
 
 ### 3. `add_security_tools.sh` (v1.0.0)
@@ -321,7 +347,7 @@ brew install gh pre-commit gitleaks
 
 1. **Generate Script**
    ```bash
-   ./shikomi.sh my_feature
+   shikomi my_feature
    ```
 
 2. **Implement Logic**
@@ -334,7 +360,7 @@ brew install gh pre-commit gitleaks
 
 4. **Bump Version**
    ```bash
-   ./bump_version.sh patch "Implemented user validation"
+   bump-version my_feature.sh patch "Implemented user validation"
    ```
 
 5. **Commit & Push**
