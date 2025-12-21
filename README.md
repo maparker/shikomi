@@ -62,6 +62,25 @@ shikomi my_awesome_script
 bump-version my_script.sh patch "Fixed bug"
 ```
 
+**Updating Shikomi:**
+```bash
+cd /path/to/shikomi
+./install.sh --update
+```
+
+The update command will:
+- Show current installed versions
+- Pull latest changes from git (if available)
+- Reinstall to the same location (user or system)
+- Show new versions after update
+
+> **Note:** If you downloaded Shikomi as a ZIP file (instead of `git clone`), the update command won't automatically fetch new code. To update:
+> 1. Download the latest ZIP from GitHub
+> 2. Extract and replace your existing files
+> 3. Run `./install.sh --update` to reinstall
+>
+> For automatic updates, use `git clone` instead of ZIP download.
+
 #### Option 2: Run from Repository
 
 ```bash
@@ -128,7 +147,7 @@ Selection: 1 2 4
 
 ## Core Components
 
-### 1. `shikomi` (v1.1.0)
+### 1. `shikomi` (v1.2.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
@@ -170,7 +189,7 @@ Security tooling setup for repositories:
 
 ## Standard macOS Variables Library
 
-Sabrage includes 12 pre-configured macOS system variables:
+Shikomi includes 12 pre-configured macOS system variables:
 
 | # | Variable | Description |
 |---|----------|-------------|
@@ -259,7 +278,7 @@ chmod 600 ~/.jamf_secrets
 
 ### In Your Scripts
 
-Sabrage automatically generates secret-aware code:
+Shikomi automatically generates secret-aware code:
 
 ```bash
 # In generated script (when you mark parameter as secret)

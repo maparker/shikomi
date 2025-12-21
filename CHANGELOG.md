@@ -5,16 +5,62 @@ All notable changes to Shikomi will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-12-07
+---
+
+## [1.2.0] - 2025-12-20
+
+### Changed - BREAKING
+- **shikomi.sh**: Now generates `bump-version.sh` (hyphenated) instead of `bump_version.sh` (underscore)
+- Standardized naming convention across all generated projects
+- All scripts now use modern CLI hyphenated naming throughout the ecosystem
 
 ### Added
-- Initial release of Shikomi script generator
+- **bump-version.sh**: Intelligent header detection during `init` command
+- **bump-version.sh**: Automatic metadata extraction from existing headers (Description, Author, Usage)
+- **bump-version.sh**: Case-insensitive field matching for header parsing
+- **bump-version.sh**: Clean header replacement with zero duplication
+
+### Documentation
+- Updated SHIKOMI_EXPLANATION.md with comprehensive v1.2.0 changes
+- Clarified naming conventions across all documentation
+- Fixed legacy "Sabrage" references in README.md
+- Added "Recent Updates" section to EXPLANATION file
+
+---
+
+## [1.1.0] - 2025-12-20
+
+### Added
+- **install.sh**: New installation script for system-wide CLI deployment
+- **install.sh**: User installation mode (`~/.local/bin`) - no sudo required
+- **install.sh**: System installation mode (`/usr/local/bin`) - requires sudo
+- **install.sh**: `--update` flag for easy updates via git pull
+- **install.sh**: `--uninstall` flag for clean removal
+- **install.sh**: PATH detection and setup guidance
+- **bump-version.sh**: `init` command to bootstrap versioning for unversioned scripts
+- **bump-version.sh**: Sets initial version to 1.0.0 with proper header structure
+
+### Changed
+- Renamed standalone `bump_version.sh` to `bump-version.sh` for modern CLI conventions
+- Scripts can now be called as `shikomi` and `bump-version` from anywhere (when installed)
+- **shikomi.sh**: Updated to support install.sh integration
+
+### Documentation
+- Added installation instructions to README.md
+- Documented update workflow for both git and ZIP downloads
+
+---
+
+## [1.0.0] - 2025-12-07
+
+### Added - Initial Release
+- **shikomi.sh**: Interactive script generator for macOS/MDM automation
 - Interactive wizard for MDM parameter collection (supports Jamf Pro $4-$11)
-- Standard macOS variables library (12 pre-configured variables)
+- Standard macOS variables library (12 pre-configured system variables)
 - Static configuration variables support
 - Secrets management via `~/.jamf_secrets`
-- Semantic versioning with `bump_version.sh`
-- Security tools integration via `add_security_tools.sh`
+- Semantic versioning with `bump-version.sh` utility
+- **add_security_tools.sh**: Security tools integration (Gitleaks, pre-commit hooks)
 - Monorepo and micro-repo mode detection
 - Automatic README.md and CHANGELOG.md generation
 - Feature branch creation workflow
@@ -25,11 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version validation across script, README, and Git tags
 
 ### Core Components
-- `shikomi.sh` - Main script generator
-- `bump_version.sh` - Semantic version management utility
-- `add_security_tools.sh` - Security tooling setup
+- `shikomi.sh` (v1.0.0) - Main script generator
+- `bump-version.sh` (v1.0.0) - Semantic version management utility
+- `add_security_tools.sh` (v1.0.0) - Security tooling setup
 
-### Standard Variables
+### Standard Variables Library
 Includes 12 macOS system variables:
 1. Serial Number
 2. Logged In User
@@ -46,15 +92,14 @@ Includes 12 macOS system variables:
 
 ---
 
-## Future Releases
+## Future Roadmap
 
-### [1.1.0] - Planned
+### Potential Future Enhancements
 - MDM-agnostic mode (Intune, Kandji, Mosyle support)
 - Enhanced secrets management with 1Password CLI
 - Script template library
 - VS Code snippets integration
-
-### [2.0.0] - Future
+- Homebrew formula for easier installation
 - Windows PowerShell support
 - Web-based UI
 - Script testing framework

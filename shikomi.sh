@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.1.0
+# VERSION:     1.2.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,12 +12,13 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.2.0 - 2025-12-20 - Changed generated bump_version.sh to bump-version.sh (hyphenated)
 # 1.1.0 - 2025-12-20 - Added install.sh for PATH installation support
 # 1.0.0 - 2025-12-07 - Initial release as Shikomi (rebranded from script_creator_pro)
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -356,46 +357,46 @@ This project uses [Semantic Versioning](https://semver.org/):
 To bump the version, use the provided version bump script:
 \`\`\`bash
 # Auto-detect script (typical usage)
-./bump_version.sh [major|minor|patch] "Description of changes"
+./bump-version.sh [major|minor|patch] "Description of changes"
 
 # Or specify script explicitly
-./bump_version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description"
+./bump-version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description"
 \`\`\`
 EOF
 
 # --- 5. Generate Version Bump Utility ---
-echo "Generating bump_version.sh..."
+echo "Generating bump-version.sh..."
 
 # For monorepo, create in current dir; for new project, create in project dir
 if [ "$IS_MONOREPO" = true ]; then
-    BUMP_PATH="$PROJECT_DIR/bump_version.sh"
+    BUMP_PATH="$PROJECT_DIR/bump-version.sh"
 else
     cd "$PROJECT_DIR" || exit
-    BUMP_PATH="./bump_version.sh"
+    BUMP_PATH="./bump-version.sh"
 fi
 
 cat > "$BUMP_PATH" << 'BUMP_EOF'
 #!/bin/bash
 
 ################################################################################
-# SCRIPT: bump_version.sh
+# SCRIPT: bump-version.sh
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
-# USAGE: ./bump_version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
+# USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
 #
 # EXAMPLES:
 #   Auto-detect script:
-#     ./bump_version.sh patch "Fixed bug in parameter validation"
+#     ./bump-version.sh patch "Fixed bug in parameter validation"
 #
 #   Specify script explicitly:
-#     ./bump_version.sh my_script.sh minor "Added new feature"
+#     ./bump-version.sh my_script.sh minor "Added new feature"
 ################################################################################
 
 set -euo pipefail
 
 # Parse arguments - support both modes:
-# Mode 1: ./bump_version.sh <bump_type> "description"  (auto-detect script)
-# Mode 2: ./bump_version.sh <script.sh> <bump_type> "description"  (explicit script)
+# Mode 1: ./bump-version.sh <bump_type> "description"  (auto-detect script)
+# Mode 2: ./bump-version.sh <script.sh> <bump_type> "description"  (explicit script)
 
 if [[ $# -eq 3 ]]; then
     # Mode 2: Script explicitly specified
@@ -422,12 +423,12 @@ elif [[ $# -eq 2 ]]; then
     BUMP_TYPE="$1"
     CHANGE_DESC="$2"
 
-    # Find the main script (exclude bump_version.sh and any other utility scripts)
+    # Find the main script (exclude bump-version.sh and any other utility scripts)
     # Strategy: Look for script with SCRIPT_VERSION constant (our generated scripts have this)
     SCRIPT_FILE=""
     shopt -s nullglob
     for file in *.sh; do
-        if [[ "$file" != "bump_version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "$file" 2>/dev/null; then
+        if [[ "$file" != "bump-version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "$file" 2>/dev/null; then
             if [[ -n "$SCRIPT_FILE" ]]; then
                 echo "Warning: Multiple versioned scripts found:"
                 echo "  - $SCRIPT_FILE"
@@ -705,11 +706,11 @@ jobs:
       - name: Extract version from script
         id: script_version
         run: |
-          # Find versioned script (same logic as bump_version.sh)
+          # Find versioned script (same logic as bump-version.sh)
           SCRIPT_FILE=""
           shopt -s nullglob
           for file in *.sh; do
-            if [[ "\$file" != "bump_version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "\$file" 2>/dev/null; then
+            if [[ "\$file" != "bump-version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "\$file" 2>/dev/null; then
               SCRIPT_FILE="\$file"
               break
             fi
@@ -806,7 +807,7 @@ else
     echo "  * .gitignore"
     [[ -f ".github/workflows/validate-version.yml" ]] && echo "  * .github/workflows/validate-version.yml"
 fi
-echo "  * bump_version.sh"
+echo "  * bump-version.sh"
 echo ""
 
 if [ "$SECRETS_USED" = true ]; then
@@ -820,10 +821,10 @@ echo "Quick Start:"
 echo "  1. Edit your script: ${SCRIPT_NAME}.sh"
 echo "  2. Test locally: sudo ./${SCRIPT_NAME}.sh"
 if [ "$IS_MONOREPO" = true ]; then
-    echo "  3. Bump version: ./bump_version.sh ${SCRIPT_NAME}.sh patch \"Your changes\""
+    echo "  3. Bump version: ./bump-version.sh ${SCRIPT_NAME}.sh patch \"Your changes\""
     echo "  4. Commit: git commit -m \"Add ${SCRIPT_NAME} script\""
 else
-    echo "  3. Bump version: ./bump_version.sh patch \"Your changes\""
+    echo "  3. Bump version: ./bump-version.sh patch \"Your changes\""
     echo "  4. Commit & tag: git commit -am \"your message\" && git tag v1.0.1"
 fi
 echo ""

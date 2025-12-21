@@ -2,17 +2,21 @@
 
 ################################################################################
 # SCRIPT:      install.sh
-# VERSION:     1.0.0
+# VERSION:     1.1.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-20
 # DESCRIPTION: Installation script for Shikomi CLI tools
 #
-# USAGE: ./install.sh [--user|--system|--uninstall]
+# USAGE: ./install.sh [--user|--system|--update|--uninstall]
+################################################################################
+# CHANGELOG
+# 1.1.0 - 2025-12-20 - Added --update flag for easy updates
+# 1.0.0 - 2025-12-20 - Initial release with install/uninstall functionality
 ################################################################################
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="1.1.0"
 readonly SCRIPT_NAME="install"
 
 # Colors for output
@@ -71,6 +75,7 @@ USAGE:
 OPTIONS:
     --user          Install to ~/.local/bin (default, no sudo required)
     --system        Install to /usr/local/bin (requires sudo)
+    --update        Update existing installation to latest version
     --uninstall     Remove installed tools
     --help, -h      Show this help message
     --version, -v   Show version information
@@ -93,6 +98,9 @@ EXAMPLES:
 
     # System-wide installation (requires sudo)
     sudo ./install.sh --system
+
+    # Update to latest version
+    ./install.sh --update
 
     # Uninstall
     ./install.sh --uninstall
@@ -217,6 +225,104 @@ function uninstall_tools() {
     fi
 }
 
+function update_tools() {
+    echo ""
+    echo -e "${BLUE}============================================${NC}"
+    echo -e "${BLUE}   Shikomi Update${NC}"
+    echo -e "${BLUE}============================================${NC}"
+    echo ""
+
+    # Find where tools are installed
+    local install_dir=""
+    local found_location=""
+
+    for check_dir in "$USER_BIN_DIR" "$SYSTEM_BIN_DIR"; do
+        if [[ -f "$check_dir/shikomi" ]]; then
+            install_dir="$check_dir"
+            if [[ "$check_dir" == "$SYSTEM_BIN_DIR" ]]; then
+                found_location="system"
+            else
+                found_location="user"
+            fi
+            break
+        fi
+    done
+
+    if [[ -z "$install_dir" ]]; then
+        log_error "Shikomi is not installed"
+        echo ""
+        log_info "To install, run: ./install.sh"
+        exit 1
+    fi
+
+    log_info "Found installation: $install_dir"
+    echo ""
+
+    # Get current installed versions
+    log_info "Current versions:"
+    for tool_pair in "${TOOLS[@]}"; do
+        local target_name="${tool_pair##*:}"
+        local target_path="$install_dir/$target_name"
+
+        if [[ -f "$target_path" ]]; then
+            local version
+            version=$("$target_path" --version 2>/dev/null || echo "unknown")
+            echo "  $target_name: $version"
+        fi
+    done
+    echo ""
+
+    # Check if we're in a git repository
+    if [[ -d ".git" ]]; then
+        log_info "Pulling latest changes from git..."
+        if git pull; then
+            log_success "Git pull successful"
+        else
+            log_warning "Git pull failed, continuing with current files"
+        fi
+        echo ""
+    else
+        log_warning "Not in a git repository"
+        log_info "To get latest code: Download new ZIP from GitHub or use 'git clone'"
+        log_info "Continuing with current files..."
+        echo ""
+    fi
+
+    # Verify source files
+    verify_source_files
+
+    # Reinstall based on found location
+    log_info "Reinstalling to $install_dir..."
+    echo ""
+
+    if [[ "$found_location" == "system" ]]; then
+        if [[ $EUID -ne 0 ]]; then
+            log_error "System installation requires sudo"
+            log_info "Please run: sudo ./install.sh --update"
+            exit 1
+        fi
+        install_tools "$install_dir" "true"
+    else
+        install_tools "$install_dir" "false"
+    fi
+
+    echo ""
+    log_info "New versions:"
+    for tool_pair in "${TOOLS[@]}"; do
+        local target_name="${tool_pair##*:}"
+        local target_path="$install_dir/$target_name"
+
+        if [[ -f "$target_path" ]]; then
+            local version
+            version=$("$target_path" --version 2>/dev/null || echo "unknown")
+            echo "  $target_name: $version"
+        fi
+    done
+    echo ""
+
+    log_success "Update complete!"
+}
+
 ################################################################################
 # Main
 ################################################################################
@@ -236,6 +342,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --uninstall)
             MODE="uninstall"
+            shift
+            ;;
+        --update)
+            MODE="update"
             shift
             ;;
         --version|-v)
@@ -260,6 +370,12 @@ print_header
 # Handle uninstall
 if [[ "$MODE" == "uninstall" ]]; then
     uninstall_tools
+    exit 0
+fi
+
+# Handle update
+if [[ "$MODE" == "update" ]]; then
+    update_tools
     exit 0
 fi
 
