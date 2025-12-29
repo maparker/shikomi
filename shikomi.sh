@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.2.0
+# VERSION:     1.2.1
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,14 +12,15 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.2.1 - 2025-12-29 - Fixed readonly variable conflict with SCRIPT_NAME
 # 1.2.0 - 2025-12-20 - Changed generated bump_version.sh to bump-version.sh (hyphenated)
 # 1.1.0 - 2025-12-20 - Added install.sh for PATH installation support
 # 1.0.0 - 2025-12-07 - Initial release as Shikomi (rebranded from script_creator_pro)
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.2.0"
-readonly SCRIPT_NAME="shikomi"
+readonly SCRIPT_VERSION="1.2.1"
+readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
 if [[ "$1" == "--version" ]] || [[ "$1" == "-v" ]]; then
@@ -265,7 +266,7 @@ cat > "$SCRIPT_PATH" << EOF
 
 ################################################################################
 # SCRIPT:      ${SCRIPT_NAME}.sh
-# VERSION:     1.1.0
+# VERSION:     1.2.1
 # AUTHOR:      $(git config user.name || echo "First Last")
 # EMAIL:       $(git config user.email || echo "first.last@prizepicks.com")
 # DATE:        $(date +%Y-%m-%d)
@@ -276,12 +277,13 @@ cat > "$SCRIPT_PATH" << EOF
 $(printf '%s\n' "${BLOCK_HEADER[@]}")
 ################################################################################
 # CHANGELOG
+# 1.2.1 - 2025-12-29 - Fixed readonly variable conflict with SCRIPT_NAME
 # 1.1.0 - 2025-12-20 - Added install.sh for PATH installation support
 # 1.0.0 - $(date +%Y-%m-%d) - Initial release
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_VERSION="1.2.1"
 readonly SCRIPT_NAME="${SCRIPT_NAME}"
 
 # --- Local Development Secrets ---
