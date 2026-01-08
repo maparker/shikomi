@@ -155,7 +155,7 @@ Installing enhanced pre-commit hooks (9 checks)...
 
 ## Core Components
 
-### 1. `shikomi` (v1.2.0)
+### 1. `shikomi` (v1.4.2)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables

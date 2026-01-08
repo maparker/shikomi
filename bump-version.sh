@@ -1,7 +1,10 @@
 #!/bin/bash
 
 ################################################################################
-# SCRIPT: bump-version.sh
+# SCRIPT:      bump-version.sh
+# VERSION:     1.2.0
+# AUTHOR:      Matt Parker
+# DATE:        2025-12-20
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
@@ -13,8 +16,41 @@
 #   Specify script explicitly:
 #     ./bump-version.sh my_script.sh minor "Added new feature"
 ################################################################################
+# CHANGELOG
+# 1.2.0 - 2025-12-20 - Auto-detect mode and explicit script mode support
+# 1.1.0 - 2025-12-20 - Added init command for bootstrapping versioning
+# 1.0.0 - 2025-12-07 - Initial release
+################################################################################
+
+readonly SCRIPT_VERSION="1.2.0"
 
 set -euo pipefail
+
+# --- Version/Help Check ---
+if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
+    echo "bump-version v$SCRIPT_VERSION"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+    echo "bump-version v$SCRIPT_VERSION - Semantic version bumping utility"
+    echo ""
+    echo "Usage: bump-version [SCRIPT_FILE] <major|minor|patch> \"Change description\""
+    echo ""
+    echo "Auto-detect script:"
+    echo "  bump-version patch \"Fixed bug in parameter validation\""
+    echo "  bump-version minor \"Added new feature for user notifications\""
+    echo "  bump-version major \"Breaking change: Removed deprecated parameters\""
+    echo ""
+    echo "Specify script explicitly:"
+    echo "  bump-version my_script.sh patch \"Fixed bug\""
+    echo "  bump-version another_script.sh minor \"Added feature\""
+    echo ""
+    echo "Options:"
+    echo "  -v, --version    Show version"
+    echo "  -h, --help       Show this help"
+    exit 0
+fi
 
 # Parse arguments - support both modes:
 # Mode 1: ./bump-version.sh <bump_type> "description"  (auto-detect script)

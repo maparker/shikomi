@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.2] - 2026-01-08
+
+### Fixed
+- **shikomi.sh**: Corrected new script template version to start at `1.0.0` instead of inheriting shikomi's version (`1.4.1`)
+- **shikomi.sh**: Fixed CHANGELOG template to only include initial release entry for new scripts
+- **shikomi.sh**: Fixed `SCRIPT_VERSION` constant in generated scripts to match version header
+
+---
+
+## [1.4.1] - 2026-01-08
+
+### Changed
+- **shikomi.sh**: Updated default shebang from `#!/bin/zsh --no-rcs` to `#!/bin/bash` for better compatibility
+- Generated scripts now use bash by default instead of zsh
+
+---
+
+## [1.4.0] - 2026-01-08
+
+### Fixed
+- **shikomi.sh**: Initial attempt to fix versioning for new script creation (incomplete - fully resolved in 1.4.2)
+
+---
+
 ## [1.3.0] - 2026-01-08
 
 ### Added
