@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.4.0
+# VERSION:     1.4.1
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.4.1 - 2026-01-08 - Changed defautl shebang
 # 1.4.0 - 2026-01-08 - Fix versioning for new script creation
 # 1.3.0 - 2026-01-08 - Added interactive prompt for enhanced pre-commit hooks with 9 checks
 # 1.2.1 - 2025-12-29 - Fixed readonly variable conflict with SCRIPT_NAME
@@ -21,7 +22,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.4.0"
+readonly SCRIPT_VERSION="1.4.1"
 readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -264,11 +265,11 @@ fi
 
 # --- 3. Generate Script ---
 cat > "$SCRIPT_PATH" << EOF
-#!/bin/zsh
+#!/bin/bash
 
 ################################################################################
 # SCRIPT:      ${SCRIPT_NAME}.sh
-# VERSION:     1.4.0
+# VERSION:     1.4.1
 # AUTHOR:      $(git config user.name || echo "First Last")
 # EMAIL:       $(git config user.email || echo "first.last@prizepicks.com")
 # DATE:        $(date +%Y-%m-%d)
@@ -279,12 +280,13 @@ cat > "$SCRIPT_PATH" << EOF
 $(printf '%s\n' "${BLOCK_HEADER[@]}")
 ################################################################################
 # CHANGELOG
+# 1.4.1 - 2026-01-08 - Changed defautl shebang
 # 1.4.0 - 2026-01-08 - Fix versioning for new script creation
 # 1.0.0 - $(date +%Y-%m-%d) - Initial release
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.4.0"
+readonly SCRIPT_VERSION="1.4.1"
 readonly SCRIPT_NAME="${SCRIPT_NAME}"
 
 # --- Local Development Secrets ---
