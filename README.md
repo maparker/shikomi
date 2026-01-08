@@ -21,7 +21,9 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 - Security checks via pre-commit hooks
 
 [#] **Security First**
+- Two-tier pre-commit hooks (basic: secrets only, enhanced: 9 checks)
 - Gitleaks integration to prevent secret commits
+- ShellCheck linting for script quality (enhanced mode)
 - Smart secret detection and masking
 - 1Password CLI integration support
 - Configurable `.gitignore` for sensitive files
@@ -106,6 +108,7 @@ shikomi my_awesome_script
 # 1. Define MDM parameters ($4-$11)
 # 2. Add static configuration variables
 # 3. Select standard macOS variables
+# 4. Choose pre-commit hook level (basic or enhanced)
 ```
 
 ### Example Session
@@ -139,6 +142,11 @@ Selection: 1 2 4
   Added: SERIAL_NUMBER
   Added: LOGGED_IN_USER
   Added: OS_VERSION
+
+Pre-commit hooks protect against secrets and code quality issues.
+Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e): e
+Installing enhanced pre-commit hooks (9 checks)...
+✓ Pre-commit hooks installed
 
 [✓] Script generated: install_app.sh (v1.0.0)
 ```
@@ -329,15 +337,54 @@ on:
 
 ### Pre-commit Hooks
 
-Automatic secret scanning before commits:
-```bash
+Shikomi offers **two levels** of pre-commit hooks during project creation:
+
+#### Basic Hooks (Default)
+Secret scanning only - lightweight protection:
+```yaml
 # .pre-commit-config.yaml
 repos:
--   repo: https://github.com/gitleaks/gitleaks
+  - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.0
     hooks:
-    -   id: gitleaks
+      - id: gitleaks
 ```
+
+#### Enhanced Hooks (Recommended)
+Comprehensive security and quality suite with **9 checks**:
+```yaml
+repos:
+  # Secret scanning
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # General checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace       # Remove trailing spaces
+      - id: end-of-file-fixer         # Ensure newline at EOF
+      - id: check-yaml                # Validate YAML syntax
+      - id: check-added-large-files   # Block files > 1MB
+      - id: check-merge-conflict      # Detect conflict markers
+      - id: detect-private-key        # Find SSH/GPG keys
+```
+
+**During project creation**, you'll be prompted to choose:
+```
+Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e):
+```
+
+For **existing projects**, use `add_security_tools.sh` to add enhanced hooks
 
 ---
 

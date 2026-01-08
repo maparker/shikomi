@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.2.1
+# VERSION:     1.3.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.3.0 - 2026-01-08 - Added interactive prompt for enhanced pre-commit hooks with 9 checks
 # 1.2.1 - 2025-12-29 - Fixed readonly variable conflict with SCRIPT_NAME
 # 1.2.0 - 2025-12-20 - Changed generated bump_version.sh to bump-version.sh (hyphenated)
 # 1.1.0 - 2025-12-20 - Added install.sh for PATH installation support
@@ -19,7 +20,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.2.1"
+readonly SCRIPT_VERSION="1.3.0"
 readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -266,7 +267,7 @@ cat > "$SCRIPT_PATH" << EOF
 
 ################################################################################
 # SCRIPT:      ${SCRIPT_NAME}.sh
-# VERSION:     1.2.1
+# VERSION:     1.3.0
 # AUTHOR:      $(git config user.name || echo "First Last")
 # EMAIL:       $(git config user.email || echo "first.last@prizepicks.com")
 # DATE:        $(date +%Y-%m-%d)
@@ -277,13 +278,14 @@ cat > "$SCRIPT_PATH" << EOF
 $(printf '%s\n' "${BLOCK_HEADER[@]}")
 ################################################################################
 # CHANGELOG
+# 1.3.0 - 2026-01-08 - Added interactive prompt for enhanced pre-commit hooks with 9 checks
 # 1.2.1 - 2025-12-29 - Fixed readonly variable conflict with SCRIPT_NAME
 # 1.1.0 - 2025-12-20 - Added install.sh for PATH installation support
 # 1.0.0 - $(date +%Y-%m-%d) - Initial release
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.2.1"
+readonly SCRIPT_VERSION="1.3.0"
 readonly SCRIPT_NAME="${SCRIPT_NAME}"
 
 # --- Local Development Secrets ---
@@ -671,17 +673,58 @@ EOF
 
 # Install Pre-commit if available
 if command -v pre-commit &> /dev/null; then
-    cat > .pre-commit-config.yaml << EOF
+    echo ""
+    echo "Pre-commit hooks protect against secrets and code quality issues."
+    read -rp "Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e): " hook_level
+
+    if [[ "$hook_level" =~ ^[Ee] ]]; then
+        # Enhanced: 9 hooks (secrets, linting, quality checks)
+        cat > .pre-commit-config.yaml << 'EOF'
 repos:
--   repo: https://github.com/gitleaks/gitleaks
+  # Secret scanning with gitleaks
+  - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.0
     hooks:
-    -   id: gitleaks
+      - id: gitleaks
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # General checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: detect-private-key
 EOF
+        echo "Installing enhanced pre-commit hooks (9 checks)..."
+    else
+        # Basic: Just gitleaks for secret scanning
+        cat > .pre-commit-config.yaml << 'EOF'
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+EOF
+        echo "Installing basic pre-commit hooks (secrets only)..."
+    fi
+
     pre-commit install
     git add .pre-commit-config.yaml
+    echo "✓ Pre-commit hooks installed"
 else
-    echo "   (Skipping pre-commit setup)"
+    echo "   (Skipping pre-commit setup - 'pre-commit' not installed)"
+    echo "   To enable: brew install pre-commit"
 fi
 
 # Optional: Generate GitHub Actions workflow for version validation

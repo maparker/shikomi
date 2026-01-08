@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-01-08
+
+### Added
+- **shikomi.sh**: Interactive prompt for choosing pre-commit hook level during project creation
+  - Basic mode: Gitleaks only (secrets scanning)
+  - Enhanced mode: 9 comprehensive checks (secrets, ShellCheck, file quality)
+- **shikomi.sh**: Enhanced hooks include ShellCheck linting, trailing whitespace removal, YAML validation, merge conflict detection, and more
+- **README.md**: Documentation for two-tier pre-commit hook system
+- **README.md**: Updated example session to show hook level selection
+
+### Changed
+- **shikomi.sh**: Improved pre-commit installation messages with clear feedback
+- **shikomi.sh**: Better error messaging when pre-commit is not installed
+
+---
+
 ## [1.2.0] - 2025-12-20
 
 ### Changed - BREAKING
