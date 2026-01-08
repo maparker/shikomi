@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      bump-version.sh
-# VERSION:     1.2.0
+# VERSION:     1.2.1
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-20
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
@@ -17,12 +17,13 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature"
 ################################################################################
 # CHANGELOG
+# 1.2.1 - 2026-01-08 - Added existence check for README.md to prevent sed errors
 # 1.2.0 - 2025-12-20 - Auto-detect mode and explicit script mode support
 # 1.1.0 - 2025-12-20 - Added init command for bootstrapping versioning
 # 1.0.0 - 2025-12-07 - Initial release
 ################################################################################
 
-readonly SCRIPT_VERSION="1.2.0"
+readonly SCRIPT_VERSION="1.2.1"
 
 set -euo pipefail
 
@@ -173,8 +174,10 @@ sed -i.bak "/^# CHANGELOG$/a\\
 $CHANGELOG_LINE" "$SCRIPT_FILE"
 
 # Update README.md version
-sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" README.md
-sed -i.bak "s/^\*\*Last Updated:\*\* .*$/\*\*Last Updated:\*\* $TODAY/" README.md
+if [[ -f "README.md" ]]; then
+    sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" README.md
+    sed -i.bak "s/^\*\*Last Updated:\*\* .*$/\*\*Last Updated:\*\* $TODAY/" README.md
+fi
 
 # Update CHANGELOG.md (add new version section at top)
 if [[ -f "CHANGELOG.md" ]]; then

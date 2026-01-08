@@ -168,7 +168,7 @@ shikomi --version  # Show version
 shikomi --help     # Show usage
 ```
 
-### 2. `bump-version` (v1.2.0)
+### 2. `bump-version` (v1.2.1)
 Semantic version management utility:
 ```bash
 # Initialize versioning for existing scripts
