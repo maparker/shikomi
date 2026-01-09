@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      install.sh
-# VERSION:     1.1.0
+# VERSION:     1.1.1
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-20
 # DESCRIPTION: Installation script for Shikomi CLI tools
@@ -10,13 +10,14 @@
 # USAGE: ./install.sh [--user|--system|--update|--uninstall]
 ################################################################################
 # CHANGELOG
+# 1.1.1 - 2026-01-09 - Corrected permissions of bump-version so it does not require sudo
 # 1.1.0 - 2025-12-20 - Added --update flag for easy updates
 # 1.0.0 - 2025-12-20 - Initial release with install/uninstall functionality
 ################################################################################
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_VERSION="1.1.1"
 readonly SCRIPT_NAME="install"
 
 # Colors for output

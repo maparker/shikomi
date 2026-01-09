@@ -2,6 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
+# VERSION: 1.0.1
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
@@ -13,8 +14,20 @@
 #   Specify script explicitly:
 #     ./bump-version.sh my_script.sh minor "Added new feature"
 ################################################################################
+# CHANGELOG
+# 1.0.1 - 2026-01-09 - Fixed file permissions to 755 for proper execution
+# 1.0.0 - 2025-12-20 - Initial release
+################################################################################
 
 set -euo pipefail
+
+readonly BUMP_VERSION="1.0.1"
+
+# --- 0. Version/Help Check ---
+if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
+    echo "bump-version v$BUMP_VERSION"
+    exit 0
+fi
 
 # Parse arguments - support both modes:
 # Mode 1: ./bump-version.sh <bump_type> "description"  (auto-detect script)
