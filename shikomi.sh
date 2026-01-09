@@ -128,8 +128,7 @@ for i in {4..11}; do
     if [[ "$is_secret" =~ ^[Yy] ]]; then
         SECRETS_USED=true
         BLOCK_HEADER+=("#   $var_name (Jamf: \$$i)")
-        BLOCK_NORMALIZATION+=("$NORM_LINE")
-        BLOCK_NORMALIZATION+=("${var_name}=\"\${${var_name}:-\$LOCAL_${var_name}}\"")
+        BLOCK_VARIABLES+=("${var_name}=\"\${LOCAL_${var_name}:-\${${i}}}\"  # Secret: prefers local, falls back to Jamf \$$i")
 
         # --- NEW SMART CHECK LOGIC START ---
         SECRETS_FILE="$HOME/.jamf_secrets"
