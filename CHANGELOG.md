@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2026-01-18
+
+### Added
+- **bump-version.sh**: Added munkipkg integration for automatic package version updates
+- **bump-version.sh**: Support for updating `build-info.json` and `build-info.plist` files
+- **bump-version.sh**: Searches multiple common locations (root, pkg/, build/) for munkipkg build-info files
+- **bump-version.sh**: Automatic version synchronization between scripts and macOS installer packages
+- **shikomi.sh**: Updated generated .gitignore to be munkipkg-friendly (allows `pkg/` directory, ignores `build/*.pkg`)
+
+### Changed
+- **bump-version.sh**: Version bumped from 1.0.1 to 1.1.0
+- **shikomi.sh**: Version bumped from 1.4.3 to 1.5.0
+- **shikomi.sh**: Now generates bump-version.sh with munkipkg support built-in
+- **shikomi.sh**: Improved .gitignore template to support munkipkg workflows
+
+---
+
 ## [1.1.1] - 2026-01-09
 
 ### Fixed

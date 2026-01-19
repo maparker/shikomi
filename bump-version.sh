@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION: 1.0.1
+# VERSION:     1.1.0
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
@@ -15,17 +15,18 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature"
 ################################################################################
 # CHANGELOG
+# 1.1.0 - 2026-01-18 - Added munkipkg build-info support for automatic package version updates
 # 1.0.1 - 2026-01-09 - Fixed file permissions to 755 for proper execution
 # 1.0.0 - 2025-12-20 - Initial release
 ################################################################################
 
 set -euo pipefail
 
-readonly BUMP_VERSION="1.0.1"
+readonly SCRIPT_VERSION="1.1.0"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
-    echo "bump-version v$BUMP_VERSION"
+    echo "bump-version v$SCRIPT_VERSION"
     exit 0
 fi
 
@@ -180,6 +181,22 @@ if [[ -f "CHANGELOG.md" ]]; then
     } > CHANGELOG.md.tmp
     mv CHANGELOG.md.tmp CHANGELOG.md
 fi
+
+# Update munkipkg build-info if present (supports both JSON and plist formats)
+# Check common locations: root, pkg/, and build/ directories
+for build_info_path in build-info.json pkg/build-info.json build/build-info.json build-info.plist pkg/build-info.plist build/build-info.plist; do
+    if [[ -f "$build_info_path" ]]; then
+        echo "Updating munkipkg version in: $build_info_path"
+        if [[ "$build_info_path" == *.json ]]; then
+            # Update JSON format
+            sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" "$build_info_path"
+            rm -f "${build_info_path}.bak" 2>/dev/null || true
+        elif [[ "$build_info_path" == *.plist ]]; then
+            # Update plist format using PlistBuddy
+            /usr/libexec/PlistBuddy -c "Set :version $NEW_VERSION" "$build_info_path" 2>/dev/null || true
+        fi
+    fi
+done
 
 # Clean up backup files
 rm -f "$SCRIPT_FILE.bak" README.md.bak CHANGELOG.md.bak 2>/dev/null || true

@@ -155,7 +155,7 @@ Installing enhanced pre-commit hooks (9 checks)...
 
 ## Core Components
 
-### 1. `shikomi` (v1.4.2)
+### 1. `shikomi` (v1.5.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
@@ -168,7 +168,7 @@ shikomi --version  # Show version
 shikomi --help     # Show usage
 ```
 
-### 2. `bump-version` (v1.2.1)
+### 2. `bump-version` (v1.1.0)
 Semantic version management utility:
 ```bash
 # Initialize versioning for existing scripts
@@ -178,6 +178,19 @@ bump-version my_script.sh init "Initial versioned release"
 bump-version my_script.sh patch "Fixed bug in user detection"
 bump-version my_script.sh minor "Added notification support"
 bump-version my_script.sh major "Breaking: Changed API interface"
+```
+
+**munkipkg Integration:**
+`bump-version` automatically detects and updates munkipkg package versions:
+- Searches for `build-info.json` or `build-info.plist` in root, `pkg/`, and `build/` directories
+- Updates the version field to match your script version
+- Supports both JSON and plist formats
+- Keeps scripts and installer packages in perfect sync
+
+```bash
+# When you bump a script version, munkipkg build-info is updated automatically
+bump-version my_script.sh minor "Added new feature"
+# Output: Updating munkipkg version in: pkg/build-info.json
 ```
 
 ### 3. `add_security_tools.sh` (v1.0.0)
@@ -317,6 +330,43 @@ When run outside a Git repository:
 ---
 
 ## Advanced Features
+
+### munkipkg Integration
+
+Shikomi's `bump-version` utility seamlessly integrates with [munkipkg](https://github.com/munki/munki-pkg) for macOS package creation:
+
+**Automatic Version Synchronization:**
+When you bump your script version, `bump-version` automatically updates your munkipkg configuration:
+- Detects `build-info.json` (JSON format) or `build-info.plist` (Property List format)
+- Searches in multiple locations: root directory, `pkg/`, and `build/`
+- Updates the `version` field to match your new script version
+- No manual editing of build-info files required
+
+**Example Workflow:**
+```bash
+# Your project structure
+my_installer/
+├── my_script.sh
+├── pkg/
+│   ├── build-info.json
+│   └── payload/
+└── README.md
+
+# Bump your script version
+./bump-version.sh patch "Fixed installation bug"
+
+# Output:
+# Current version: 1.0.0
+# New version: 1.0.1
+# Updating munkipkg version in: pkg/build-info.json
+# SUCCESS: Version bumped to 1.0.1
+
+# Now build your package with munkipkg
+munkipkg pkg/
+# Package version automatically matches script version!
+```
+
+This ensures your installer package versions always stay in sync with your script versions, eliminating version mismatch issues.
 
 ### GitHub Actions Integration
 

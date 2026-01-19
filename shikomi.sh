@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.4.3
+# VERSION:     1.5.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.5.0 - 2026-01-18 - Added munkipkg integration to generated bump-version.sh scripts
 # 1.4.3 - 2026-01-09 - Fixed secrets variable
 # 1.4.2 - 2026-01-08 - Fixed new script template version (was incorrectly 1.4.1, now correctly 1.0.0)
 # 1.4.1 - 2026-01-08 - Changed default shebang
@@ -24,7 +25,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.4.3"
+readonly SCRIPT_VERSION="1.5.0"
 readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -270,7 +271,7 @@ cat > "$SCRIPT_PATH" << EOF
 
 ################################################################################
 # SCRIPT:      ${SCRIPT_NAME}.sh
-# VERSION:     1.4.3
+# VERSION:     1.0.0
 # AUTHOR:      $(git config user.name || echo "First Last")
 # EMAIL:       $(git config user.email || echo "first.last@prizepicks.com")
 # DATE:        $(date +%Y-%m-%d)
@@ -281,12 +282,11 @@ cat > "$SCRIPT_PATH" << EOF
 $(printf '%s\n' "${BLOCK_HEADER[@]}")
 ################################################################################
 # CHANGELOG
-# 1.4.3 - 2026-01-09 - Fixed secrets variable
 # 1.0.0 - $(date +%Y-%m-%d) - Initial release
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.4.3"
+readonly SCRIPT_VERSION="1.0.0"
 readonly SCRIPT_NAME="${SCRIPT_NAME}"
 
 # --- Local Development Secrets ---
@@ -551,6 +551,22 @@ if [[ -f "CHANGELOG.md" ]]; then
     mv CHANGELOG.md.tmp CHANGELOG.md
 fi
 
+# Update munkipkg build-info if present (supports both JSON and plist formats)
+# Check common locations: root, pkg/, and build/ directories
+for build_info_path in build-info.json pkg/build-info.json build/build-info.json build-info.plist pkg/build-info.plist build/build-info.plist; do
+    if [[ -f "$build_info_path" ]]; then
+        echo "Updating munkipkg version in: $build_info_path"
+        if [[ "$build_info_path" == *.json ]]; then
+            # Update JSON format
+            sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" "$build_info_path"
+            rm -f "${build_info_path}.bak" 2>/dev/null || true
+        elif [[ "$build_info_path" == *.plist ]]; then
+            # Update plist format using PlistBuddy
+            /usr/libexec/PlistBuddy -c "Set :version $NEW_VERSION" "$build_info_path" 2>/dev/null || true
+        fi
+    fi
+done
+
 # Clean up backup files
 rm -f "$SCRIPT_FILE.bak" README.md.bak CHANGELOG.md.bak 2>/dev/null || true
 
@@ -668,8 +684,12 @@ config.local
 
 # --- Binary Artifacts (Don't commit these!) ---
 *.dmg
-*.pkg
 *.zip
+
+# --- munkipkg Build Artifacts ---
+# Allow pkg/ source directory but ignore built packages
+build/*.pkg
+*.pkg.zip
 EOF
 
 # Install Pre-commit if available

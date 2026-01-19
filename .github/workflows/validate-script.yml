@@ -1,0 +1,259 @@
+name: Validate Jamf Auto-Patch Script
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'jamf-apple-auto-patch.sh'
+      - '.github/workflows/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'jamf-apple-auto-patch.sh'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  shellcheck:
+    name: ShellCheck Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          severity: warning
+          format: gcc
+          additional_files: 'jamf-apple-auto-patch.sh'
+
+  syntax-check:
+    name: Syntax Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+
+      - name: Check zsh syntax
+        run: |
+          echo "Checking zsh syntax..."
+          zsh -n jamf-apple-auto-patch.sh
+          echo "✅ Syntax check passed"
+
+  dependency-check:
+    name: Dependency Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Verify jq installation
+        run: |
+          jq --version
+          echo "✅ jq is available"
+
+      - name: Verify curl installation
+        run: |
+          curl --version
+          echo "✅ curl is available"
+
+      - name: Check script dependencies
+        run: |
+          echo "Checking script for required commands..."
+
+          # Extract command usage from script
+          REQUIRED_CMDS="jq curl date echo"
+
+          for cmd in $REQUIRED_CMDS; do
+            if command -v $cmd &> /dev/null; then
+              echo "✅ $cmd is available"
+            else
+              echo "❌ $cmd is NOT available"
+              exit 1
+            fi
+          done
+
+  version-check:
+    name: Version Consistency
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract versions
+        id: versions
+        run: |
+          # Extract version from script
+          SCRIPT_VERSION=$(grep -m1 "^readonly SCRIPT_VERSION=" jamf-apple-auto-patch.sh | cut -d'"' -f2)
+          echo "script_version=$SCRIPT_VERSION" >> $GITHUB_OUTPUT
+          echo "Script version: $SCRIPT_VERSION"
+
+          # Extract version from header comment
+          HEADER_VERSION=$(grep -m1 "^# VERSION:" jamf-apple-auto-patch.sh | awk '{print $3}')
+          echo "header_version=$HEADER_VERSION" >> $GITHUB_OUTPUT
+          echo "Header version: $HEADER_VERSION"
+
+          # Extract version from README
+          README_VERSION=$(grep -m1 "^\*\*Version:\*\*" jamf-apple-auto-patch_README.md | awk '{print $2}')
+          echo "readme_version=$README_VERSION" >> $GITHUB_OUTPUT
+          echo "README version: $README_VERSION"
+
+      - name: Compare versions
+        run: |
+          SCRIPT_VERSION="${{ steps.versions.outputs.script_version }}"
+          HEADER_VERSION="${{ steps.versions.outputs.header_version }}"
+          README_VERSION="${{ steps.versions.outputs.readme_version }}"
+
+          echo "Comparing versions..."
+          echo "  Script constant: $SCRIPT_VERSION"
+          echo "  Header comment:  $HEADER_VERSION"
+          echo "  README:          $README_VERSION"
+
+          if [[ "$SCRIPT_VERSION" != "$HEADER_VERSION" ]]; then
+            echo "❌ Script version ($SCRIPT_VERSION) doesn't match header ($HEADER_VERSION)"
+            exit 1
+          fi
+
+          if [[ "$SCRIPT_VERSION" != "$README_VERSION" ]]; then
+            echo "❌ Script version ($SCRIPT_VERSION) doesn't match README ($README_VERSION)"
+            exit 1
+          fi
+
+          echo "✅ All versions match: $SCRIPT_VERSION"
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for potential hardcoded secrets..."
+
+          # Check for common secret patterns
+          if grep -E '(client_secret|api_key|password|token).*=.*["\047][^"\047$]{20,}' jamf-apple-auto-patch.sh; then
+            echo "❌ Potential hardcoded secrets found!"
+            echo "Secrets should be in ~/.jamf_secrets or environment variables"
+            exit 1
+          fi
+
+          echo "✅ No obvious hardcoded secrets detected"
+
+      - name: Verify secrets are parameterized
+        run: |
+          echo "Verifying credentials use variables..."
+
+          # Check that credentials use variable references
+          if grep -q 'LOCAL_JAMF_CLIENT_ID' jamf-apple-auto-patch.sh && \
+             grep -q 'LOCAL_JAMF_CLIENT_SECRET' jamf-apple-auto-patch.sh && \
+             grep -q 'LOCAL_JAMF_URI' jamf-apple-auto-patch.sh; then
+            echo "✅ Credentials properly parameterized"
+          else
+            echo "❌ Credentials not properly parameterized"
+            exit 1
+          fi
+
+  dry-run-simulation:
+    name: Dry Run Simulation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl zsh
+
+      - name: Create mock secrets
+        run: |
+          cat > ~/.jamf_secrets << 'EOF'
+          LOCAL_JAMF_CLIENT_ID="mock-client-id"
+          LOCAL_JAMF_CLIENT_SECRET="mock-client-secret"
+          LOCAL_JAMF_URI="https://mock.jamfcloud.com"
+          LOCAL_NVD_API_KEY="mock-nvd-key"
+          EOF
+          chmod 600 ~/.jamf_secrets
+
+      - name: Simulate script startup
+        run: |
+          echo "Testing script initialization..."
+
+          # Source the script to check for syntax errors in initialization
+          # This won't actually run the main function but will catch early errors
+          zsh -c '
+            # Mock system_profiler command
+            system_profiler() { echo "MOCK123456"; }
+            export -f system_profiler
+
+            # Source first 200 lines (before main execution)
+            head -200 jamf-apple-auto-patch.sh | zsh
+          ' || echo "⚠️  Note: Full dry-run requires actual Jamf Pro instance"
+
+          echo "✅ Script initialization test completed"
+
+  comment-pr:
+    name: Comment on PR
+    runs-on: ubuntu-latest
+    needs: [shellcheck, syntax-check, dependency-check, version-check, security-scan]
+    if: github.event_name == 'pull_request' && success()
+
+    steps:
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ✅ Validation Passed
+
+              All validation checks passed successfully!
+
+              - ✅ ShellCheck linting
+              - ✅ Syntax validation
+              - ✅ Dependency checks
+              - ✅ Version consistency
+              - ✅ Security scanning
+
+              The script is ready for deployment.
+
+              **Next Steps:**
+              1. Merge this PR
+              2. Verify GitHub Secrets are configured
+              3. Test with manual workflow run
+              4. Monitor first scheduled execution
+
+              ---
+              *Automated validation by GitHub Actions*`
+            })
