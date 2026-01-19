@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.4] - 2026-01-19
+
+### Fixed
+- Updated bump-version.sh to only modify actual version numbers, not template variables
+
+
+## [1.5.3] - 2026-01-19
+
+### Fixed
+- Fixed version template to prevent generated scripts from inheriting shikomi's version number
+
+
+## [1.0.1] - 2026-01-19
+
+### Fixed
+- Fixed version template to prevent generated scripts from inheriting shikomi's version number
+
+
+## [1.5.2] - 2026-01-19
+
+### Fixed
+- Updated the created gitignore file to better prevent committing pkg files.
+
+
 ## [1.5.1] - 2026-01-18
 
 ### Added

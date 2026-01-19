@@ -139,16 +139,15 @@ TODAY=$(date +%Y-%m-%d)
 echo "New version: $NEW_VERSION"
 echo "Change: $CHANGE_DESC"
 
-# Update version in script file header
-sed -i.bak "s/^# VERSION:.*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
+# Update version in script file header (only lines with actual version numbers, not variables)
+sed -i.bak "s/^# VERSION:     [0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
 
-# Update SCRIPT_VERSION constant
-sed -i.bak "s/^readonly SCRIPT_VERSION=.*$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
+# Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
+sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
 
-# Update CHANGELOG in script header (add new entry at top)
+# Update CHANGELOG in script header (add new entry at top - only first occurrence)
 CHANGELOG_LINE="# $NEW_VERSION - $TODAY - $CHANGE_DESC"
-sed -i.bak "/^# CHANGELOG$/a\\
-$CHANGELOG_LINE" "$SCRIPT_FILE"
+sed -i.bak "0,/^# CHANGELOG$/s//# CHANGELOG\n$CHANGELOG_LINE/" "$SCRIPT_FILE"
 
 # Update README.md version
 sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" README.md

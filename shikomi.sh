@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.5.1
+# VERSION:     1.5.4
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,9 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.5.4 - 2026-01-19 - Updated bump-version.sh to only modify actual version numbers, not template variables
+# 1.5.3 - 2026-01-19 - Fixed version template to prevent generated scripts from inheriting shikomi's version number
+# 1.5.2 - 2026-01-19 - Updated the created gitignore file to better prevent committing pkg files.
 # 1.5.1 - 2026-01-18 - Added enhanced logging functions to generated scripts
 # 1.5.0 - 2026-01-18 - Added munkipkg integration to generated bump-version.sh scripts
 # 1.4.3 - 2026-01-09 - Fixed secrets variable
@@ -26,7 +29,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.5.1"
+readonly SCRIPT_VERSION="1.5.4"
 readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -267,15 +270,19 @@ if [[ "$add_static" =~ ^[Yy] ]]; then
 fi
 
 # --- 3. Generate Script ---
+# Use variables to prevent bump-version.sh from modifying the template
+INITIAL_VERSION="1.0.0"
+INITIAL_DATE="$(date +%Y-%m-%d)"
+
 cat > "$SCRIPT_PATH" << EOF
 #!/bin/bash
 
 ################################################################################
 # SCRIPT:      ${SCRIPT_NAME}.sh
-# VERSION:     1.0.0
+# VERSION:     ${INITIAL_VERSION}
 # AUTHOR:      $(git config user.name || echo "First Last")
 # EMAIL:       $(git config user.email || echo "first.last@prizepicks.com")
-# DATE:        $(date +%Y-%m-%d)
+# DATE:        ${INITIAL_DATE}
 # Description: Fancy script that makes something cool happen on a Mac.
 #
 ################################################################################
@@ -283,11 +290,11 @@ cat > "$SCRIPT_PATH" << EOF
 $(printf '%s\n' "${BLOCK_HEADER[@]}")
 ################################################################################
 # CHANGELOG
-# 1.0.0 - $(date +%Y-%m-%d) - Initial release
+# ${INITIAL_VERSION} - ${INITIAL_DATE} - Initial release
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="${INITIAL_VERSION}"
 readonly SCRIPT_NAME="${SCRIPT_NAME}"
 
 # --- Local Development Secrets ---
@@ -512,16 +519,15 @@ TODAY=$(date +%Y-%m-%d)
 echo "New version: $NEW_VERSION"
 echo "Change: $CHANGE_DESC"
 
-# Update version in script file header
-sed -i.bak "s/^# VERSION:.*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
+# Update version in script file header (only lines with actual version numbers, not variables)
+sed -i.bak "s/^# VERSION:     [0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
 
-# Update SCRIPT_VERSION constant
-sed -i.bak "s/^readonly SCRIPT_VERSION=.*$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
+# Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
+sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
 
-# Update CHANGELOG in script header (add new entry at top)
+# Update CHANGELOG in script header (add new entry at top - only first occurrence)
 CHANGELOG_LINE="# $NEW_VERSION - $TODAY - $CHANGE_DESC"
-sed -i.bak "/^# CHANGELOG$/a\\
-$CHANGELOG_LINE" "$SCRIPT_FILE"
+sed -i.bak "0,/^# CHANGELOG$/s//# CHANGELOG\n$CHANGELOG_LINE/" "$SCRIPT_FILE"
 
 # Update README.md version
 sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" README.md
@@ -689,10 +695,13 @@ config.local
 # --- Binary Artifacts (Don't commit these!) ---
 *.dmg
 *.zip
+*.tar.gz
 
 # --- munkipkg Build Artifacts ---
 # Allow pkg/ source directory but ignore built packages
-build/*.pkg
+pkg/build/
+**/build/*.pkg
+*.pkg
 *.pkg.zip
 EOF
 

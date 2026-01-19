@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      add_security_tools.sh
-# VERSION:     1.0.0
+# VERSION:     1.0.1
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Adds security tools and checks to an existing Git repository
@@ -12,11 +12,12 @@
 #              - Enhanced .gitignore
 ################################################################################
 # CHANGELOG
+# 1.0.1 - 2026-01-19 - Fixed version template to prevent generated scripts from inheriting shikomi's version number
 # 1.0.0 - 2025-12-07 - Initial versioned release
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="1.0.1"
 readonly SCRIPT_NAME="add_security_tools"
 
 set -euo pipefail
