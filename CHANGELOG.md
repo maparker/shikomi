@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.1] - 2026-01-18
+
+### Added
+- **shikomi.sh**: Enhanced logging functions in generated scripts (`log()`, `log_warn()`, `log_error()`, `log_success()`)
+- **README.md**: Comprehensive "Built-in Logging Functions" documentation section with usage examples
+- **README.md**: Log filtering and stderr redirection examples
+
+### Changed
+- **shikomi.sh**: Version bumped from 1.5.0 to 1.5.1
+- **shikomi.sh**: Generated scripts now include INFO severity level in standard log() function
+- **shikomi.sh**: Error and warning functions now output to stderr for proper stream separation
+
+---
+
 ## [1.5.0] - 2026-01-18
 
 ### Added

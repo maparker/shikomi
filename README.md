@@ -155,7 +155,7 @@ Installing enhanced pre-commit hooks (9 checks)...
 
 ## Core Components
 
-### 1. `shikomi` (v1.5.0)
+### 1. `shikomi` (v1.5.1)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
@@ -264,7 +264,10 @@ APP_NAME="${4:-"Slack"}"
 
 # --- Logging Setup ---
 LOG_FILE="/var/log/script_name.log"
-function log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+function log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+function log_warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $*" >&2; }
+function log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
+function log_success() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $*"; }
 
 # --- Main Logic ---
 log "Starting $SCRIPT_NAME v$SCRIPT_VERSION..."
@@ -275,6 +278,82 @@ log "System: Serial Number: $SERIAL_NUMBER"
 
 log "$SCRIPT_NAME completed successfully"
 exit 0
+```
+
+---
+
+## Built-in Logging Functions
+
+Every generated script includes enhanced logging functions with severity levels:
+
+### Available Functions
+
+| Function | Severity | Output | Use Case |
+|----------|----------|--------|----------|
+| `log()` | INFO | stdout | General information and progress updates |
+| `log_warn()` | WARN | stderr | Non-critical warnings that don't stop execution |
+| `log_error()` | ERROR | stderr | Critical errors requiring attention |
+| `log_success()` | SUCCESS | stdout | Successful completion of operations |
+
+### Usage Examples
+
+```bash
+# General information logging
+log "Starting installation of Slack"
+log "Downloading package from https://example.com/slack.dmg"
+
+# Warning for non-critical issues
+log_warn "User not logged in, using default settings"
+log_warn "Optional dependency not found, skipping feature"
+
+# Error logging (outputs to stderr)
+log_error "Failed to download package from URL"
+log_error "Insufficient disk space: ${AVAILABLE_SPACE}GB available"
+
+# Success messages for completed operations
+log_success "Application installed successfully"
+log_success "Configuration file updated"
+```
+
+### Log Output Format
+
+All logs include timestamp and severity level:
+
+```
+[2026-01-18 14:30:15] INFO: Starting installation of Slack
+[2026-01-18 14:30:16] WARN: User not logged in, using default settings
+[2026-01-18 14:30:20] ERROR: Failed to download package from URL
+[2026-01-18 14:30:25] SUCCESS: Application installed successfully
+```
+
+### Filtering Logs
+
+Use grep to filter by severity:
+
+```bash
+# Show only errors
+grep "ERROR:" /var/log/my_script.log
+
+# Show warnings and errors
+grep -E "WARN:|ERROR:" /var/log/my_script.log
+
+# Show only successful operations
+grep "SUCCESS:" /var/log/my_script.log
+
+# Count errors
+grep -c "ERROR:" /var/log/my_script.log
+```
+
+### Redirecting stderr
+
+Capture errors and warnings separately:
+
+```bash
+# Run script and separate stdout/stderr
+./my_script.sh > output.log 2> errors.log
+
+# Or combine with timestamps
+./my_script.sh 2>&1 | tee /var/log/my_script.log
 ```
 
 ---

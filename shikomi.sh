@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.5.0
+# VERSION:     1.5.1
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.5.1 - 2026-01-18 - Added enhanced logging functions to generated scripts
 # 1.5.0 - 2026-01-18 - Added munkipkg integration to generated bump-version.sh scripts
 # 1.4.3 - 2026-01-09 - Fixed secrets variable
 # 1.4.2 - 2026-01-08 - Fixed new script template version (was incorrectly 1.4.1, now correctly 1.0.0)
@@ -25,7 +26,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.5.0"
+readonly SCRIPT_VERSION="1.5.1"
 readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -302,7 +303,10 @@ $(printf '%s\n' "${BLOCK_VARIABLES[@]}")
 
 # --- Logging Setup ---
 LOG_FILE="/var/log/${SCRIPT_NAME}.log"
-function log() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] \$*"; }
+function log() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] INFO: \$*"; }
+function log_warn() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] WARN: \$*" >&2; }
+function log_error() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] ERROR: \$*" >&2; }
+function log_success() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: \$*"; }
 
 # --- Main Logic ---
 log "Starting \$SCRIPT_NAME v\$SCRIPT_VERSION..."
