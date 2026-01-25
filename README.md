@@ -209,6 +209,51 @@ Security tooling setup for repositories:
 
 ---
 
+## Script Templates
+
+Shikomi supports multiple script templates:
+
+### 1. Regular Script (Default)
+Full-featured automation scripts with:
+- Jamf Pro parameters ($4-$11)
+- Logging functions (log, log_warn, log_error, log_success)
+- Secrets management (1Password or file-based)
+- Static configuration variables
+
+**Use for:** Installation, configuration management, user provisioning, automation workflows
+
+### 2. Extension Attribute (EA)
+Lightweight inventory reporting scripts with:
+- Simple header with version tracking
+- Static data collection variables
+- Required `<result>VALUE</result>` output format
+- No parameters, logging, or secrets management
+- Optimized for fast execution
+
+**Use for:** Jamf Pro inventory data collection, application version checking, compliance reporting
+
+### Template Selection
+
+During script generation, you'll be prompted:
+```
+What type of script do you want to create?
+  1) Regular Script     - Full-featured automation
+  2) Extension Attribute - Jamf inventory reporting
+Selection (1/2) [1]:
+```
+
+### Example: Creating an Extension Attribute
+
+```bash
+$ shikomi crowdstrike_version
+Selection: 2
+Add '_ea' suffix? (y/n) [y]: y
+
+# Generated: crowdstrike_version_ea.sh with <result> output format
+```
+
+---
+
 ## Standard macOS Variables Library
 
 Shikomi includes 12 pre-configured macOS system variables:

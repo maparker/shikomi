@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-01-25
+
+### Added
+- Multi-template support for different script types
+- Extension Attribute (EA) template for Jamf Pro inventory reporting
+- Automatic `_ea` suffix suggestion for EA scripts
+- EA-specific README with Jamf Pro setup instructions
+- Template selection prompt at script generation start
+
+### Changed
+- Refactored script generation to support multiple templates
+- Conditional parameter collection based on template type
+- Enhanced final summary with template-specific guidance
+
 ## [1.6.0] - 2026-01-25
 
 ### Added

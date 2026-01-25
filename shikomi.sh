@@ -111,9 +111,46 @@ else
     CHANGELOG_PATH="$PROJECT_DIR/CHANGELOG.md"
 fi
 
-echo "Target: $SCRIPT_PATH"
-echo "Define Parameters (\$4-\$11). Press [Enter] on Label to finish."
+# --- 2. Template Selection ---
 echo ""
+echo "--- Script Template Selection ---"
+echo "What type of script do you want to create?"
+echo "  1) Regular Script     - Full-featured automation with parameters, logging, secrets"
+echo "  2) Extension Attribute - Simple Jamf inventory reporting (<result> output)"
+read -rp "Selection (1/2) [1]: " template_choice
+template_choice="${template_choice:-1}"
+
+case "$template_choice" in
+    1)
+        SCRIPT_TEMPLATE="regular"
+        echo "Selected: Regular Script"
+        ;;
+    2)
+        SCRIPT_TEMPLATE="ea"
+        echo "Selected: Extension Attribute"
+        # For EA scripts, suggest _ea suffix if not present
+        if [[ ! "$SCRIPT_NAME" =~ _ea$ ]]; then
+            read -rp "Add '_ea' suffix to script name? (y/n) [y]: " add_suffix
+            add_suffix="${add_suffix:-y}"
+            if [[ "$add_suffix" =~ ^[Yy] ]]; then
+                SCRIPT_NAME="${SCRIPT_NAME}_ea"
+                SCRIPT_PATH="$PROJECT_DIR/${SCRIPT_NAME}.sh"
+                if [ "$IS_MONOREPO" = true ]; then
+                    README_PATH="$PROJECT_DIR/${SCRIPT_NAME}_README.md"
+                    CHANGELOG_PATH="$PROJECT_DIR/${SCRIPT_NAME}_CHANGELOG.md"
+                fi
+                echo "Script name updated to: ${SCRIPT_NAME}.sh"
+            fi
+        fi
+        ;;
+    *)
+        echo "Invalid selection. Defaulting to Regular Script."
+        SCRIPT_TEMPLATE="regular"
+        ;;
+esac
+echo ""
+
+echo "Target: $SCRIPT_PATH"
 
 # --- 2. Interactive Wizard ---
 declare -a BLOCK_HEADER
@@ -123,6 +160,11 @@ declare -a README_ROWS
 SECRETS_USED=false
 declare -a SECRET_REMINDERS
 declare -a ONEPASSWORD_SECRETS  # Track 1Password secret references
+
+# Only collect Jamf parameters for regular scripts
+if [[ "$SCRIPT_TEMPLATE" == "regular" ]]; then
+    echo "Define Parameters (\$4-\$11). Press [Enter] on Label to finish."
+    echo ""
 
 for i in {4..11}; do
     echo "--- Parameter $i ---"
@@ -242,10 +284,21 @@ for i in {4..11}; do
     fi
 done
 
+else
+    echo "Extension Attributes typically don't use Jamf parameters."
+    echo "Skipping parameter collection."
+    echo ""
+fi
+
 # --- 2.5. Static Configuration Variables (Non-Jamf Parameters) ---
 echo ""
-echo "--- Static Configuration Variables ---"
-echo "These are hardcoded in the script (not MDM parameters)"
+if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+    echo "--- Data Collection Variables ---"
+    echo "Extension Attributes often need to query system information."
+else
+    echo "--- Static Configuration Variables ---"
+    echo "These are hardcoded in the script (not MDM parameters)"
+fi
 read -rp "Add static configuration variables? (y/n): " add_static
 
 declare -a STATIC_VARS
@@ -354,7 +407,47 @@ fi
 INITIAL_VERSION="1.0.0"
 INITIAL_DATE="$(date +%Y-%m-%d)"
 
-cat > "$SCRIPT_PATH" << EOF
+if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+    # Extension Attribute Template
+    cat > "$SCRIPT_PATH" << EOF
+#!/bin/bash
+
+##################################################################
+# SCRIPT:         ${SCRIPT_NAME}.sh
+# VERSION:        ${INITIAL_VERSION}
+# DESCRIPTION:    Extension Attribute for Jamf Pro inventory reporting
+#
+# AUTHOR:         $(git config user.name || echo "First Last")
+# EMAIL:          $(git config user.email || echo "first.last@example.com")
+##################################################################
+#
+# History
+# ${INITIAL_VERSION} - ${INITIAL_DATE} - Initial release
+#
+##################################################################
+
+# --- Script Metadata ---
+readonly SCRIPT_VERSION="${INITIAL_VERSION}"
+
+# --- Static Configuration ---
+$(printf '%s\n' "${STATIC_VARS[@]}")
+
+# --- Data Collection Logic ---
+# TODO: Add your data collection logic here
+# Example with error handling:
+# RESULT=\$(command_to_get_data 2>/dev/null)
+# RESULT="\${RESULT:-Not Available}"  # Fallback if empty or command fails
+
+# --- Output Result ---
+# Extension Attributes MUST output in this format:
+RESULT="Not Configured"
+
+echo "<result>\${RESULT}</result>"
+exit 0
+EOF
+else
+    # Regular Script Template
+    cat > "$SCRIPT_PATH" << EOF
 #!/bin/bash
 
 ################################################################################
@@ -404,12 +497,91 @@ log "----------------------------------------"
 log "\$SCRIPT_NAME completed successfully"
 exit 0
 EOF
+fi
 
 chmod +x "$SCRIPT_PATH"
 
 # --- 4. Generate README.md ---
 echo "Generating README..."
-cat > "$README_PATH" << EOF
+
+if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+    # EA README
+    cat > "$README_PATH" << EOF
+# $SCRIPT_NAME
+
+**Type:** Jamf Pro Extension Attribute
+**Version:** 1.0.0
+**Author:** $(git config user.name || echo "First Last")
+**Last Updated:** $(date +%Y-%m-%d)
+
+## Description
+This Extension Attribute reports inventory data to Jamf Pro.
+
+## Purpose
+Extension Attributes extend Jamf Pro's inventory data with custom information. This script:
+- Runs during inventory updates
+- Outputs data in \`<result>VALUE</result>\` format
+- Should be silent except for the result output
+- Typically collects read-only system information
+
+## Static Configuration
+$(if [ ${#STATIC_README_ROWS[@]} -gt 0 ]; then
+    echo "| Variable | Type | Value | Description |"
+    echo "|----------|------|-------|-------------|"
+    printf '%s\n' "${STATIC_README_ROWS[@]}"
+else
+    echo "No static configuration variables defined."
+fi)
+
+## Jamf Pro Setup
+
+### 1. Add Extension Attribute
+1. Log into Jamf Pro
+2. Navigate to **Settings** > **Computer Management** > **Extension Attributes**
+3. Click **+ New**
+4. Configure:
+   - **Display Name:** $SCRIPT_NAME
+   - **Description:** [Add description of what this reports]
+   - **Data Type:** String (or Integer/Date as appropriate)
+   - **Inventory Display:** Choose appropriate category
+   - **Input Type:** Script
+5. Paste the contents of \`$SCRIPT_NAME.sh\`
+6. Click **Save**
+
+### 2. Verify Collection
+1. Run \`sudo jamf recon\` on a test Mac
+2. Check computer inventory in Jamf Pro
+3. Find the new attribute in the configured category
+
+## Local Testing
+
+Test the script locally to verify output format:
+
+\`\`\`bash
+./$SCRIPT_NAME.sh
+
+# Expected output format:
+# <result>VALUE_HERE</result>
+\`\`\`
+
+## Data Type Recommendations
+
+| Data Type | Use When | Example Values |
+|-----------|----------|----------------|
+| **String** | Text values, version numbers, status | "1.2.3", "Installed", "Active" |
+| **Integer** | Numeric counts, IDs, percentages | 42, 0, 100 |
+| **Date** | Timestamps, dates | "2025-12-07", "2025-12-07 14:30:00" |
+
+## Versioning
+This script uses [Semantic Versioning](https://semver.org/). To bump the version:
+
+\`\`\`bash
+./bump-version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description of changes"
+\`\`\`
+EOF
+else
+    # Regular README
+    cat > "$README_PATH" << EOF
 # $SCRIPT_NAME
 
 **Version:** 1.0.0
@@ -482,6 +654,7 @@ To bump the version, use the provided version bump script:
 ./bump-version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description"
 \`\`\`
 EOF
+fi
 
 # --- 5. Generate Version Bump Utility ---
 echo "Generating bump-version.sh..."
@@ -623,7 +796,7 @@ echo "New version: $NEW_VERSION"
 echo "Change: $CHANGE_DESC"
 
 # Update version in script file header (only lines with actual version numbers, not variables)
-sed -i.bak "s/^# VERSION:     [0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
+sed -i.bak "s/^# VERSION:[[:space:]]*[0-9][0-9.]*$/# VERSION:        $NEW_VERSION/" "$SCRIPT_FILE"
 
 # Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
 sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
@@ -708,9 +881,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of $SCRIPT_NAME
-- Core functionality implemented
-- Jamf Pro parameter support
-$([ "$SECRETS_USED" = true ] && echo "- Secure secrets management via ~/.jamf_secrets")
+$(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+    echo "- Extension Attribute for Jamf Pro inventory reporting"
+    echo "- Data collection logic"
+    echo "- Proper <result> output formatting"
+else
+    echo "- Core functionality implemented"
+    echo "- Jamf Pro parameter support"
+    [ "$SECRETS_USED" = true ] && echo "- Secure secrets management"
+fi)
 EOF
 
 # --- 6. Branching Git Logic ---
@@ -977,6 +1156,7 @@ else
     echo "Mode: New Project (isolated repo)"
     echo "Location: $PROJECT_DIR"
 fi
+echo "Template: $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "Extension Attribute"; else echo "Regular Script"; fi)"
 echo ""
 echo "Generated Files:"
 echo "  * ${SCRIPT_NAME}.sh (v1.0.0)"
@@ -991,6 +1171,15 @@ else
 fi
 echo "  * bump-version.sh"
 echo ""
+
+if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+    echo "Extension Attribute Setup:"
+    echo "  1. Test locally: ./${SCRIPT_NAME}.sh"
+    echo "  2. Verify output format: <result>VALUE</result>"
+    echo "  3. Add to Jamf Pro: Settings > Extension Attributes"
+    echo "  4. Run inventory: sudo jamf recon"
+    echo ""
+fi
 
 if [ "$SECRETS_USED" = true ] && [ ${#SECRET_REMINDERS[@]} -gt 0 ]; then
     echo "⚠️  SECRETS CONFIGURATION NEEDED:"
@@ -1036,13 +1225,18 @@ fi
 
 echo "Quick Start:"
 echo "  1. Edit your script: ${SCRIPT_NAME}.sh"
-echo "  2. Test locally: sudo ./${SCRIPT_NAME}.sh"
-if [ "$IS_MONOREPO" = true ]; then
-    echo "  3. Bump version: ./bump-version.sh ${SCRIPT_NAME}.sh patch \"Your changes\""
-    echo "  4. Commit: git commit -m \"Add ${SCRIPT_NAME} script\""
+if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+    echo "  2. Test output: ./${SCRIPT_NAME}.sh"
+    echo "  3. Add to Jamf Pro Extension Attributes"
 else
-    echo "  3. Bump version: ./bump-version.sh patch \"Your changes\""
-    echo "  4. Commit & tag: git commit -am \"your message\" && git tag v1.0.1"
+    echo "  2. Test locally: sudo ./${SCRIPT_NAME}.sh"
+fi
+if [ "$IS_MONOREPO" = true ]; then
+    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "4"; else echo "3"; fi). Bump version: ./bump-version.sh ${SCRIPT_NAME}.sh patch \"Your changes\""
+    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "5"; else echo "4"; fi). Commit: git commit -m \"Add ${SCRIPT_NAME} script\""
+else
+    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "4"; else echo "3"; fi). Bump version: ./bump-version.sh patch \"Your changes\""
+    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "5"; else echo "4"; fi). Commit & tag: git commit -am \"your message\" && git tag v1.0.1"
 fi
 echo ""
 
