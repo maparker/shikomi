@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.5.4
+# VERSION:     1.6.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.6.0 - 2026-01-25 - Added 1Password integration for secret storage with interactive configuration during script generation
 # 1.5.4 - 2026-01-19 - Updated bump-version.sh to only modify actual version numbers, not template variables
 # 1.5.3 - 2026-01-19 - Fixed version template to prevent generated scripts from inheriting shikomi's version number
 # 1.5.2 - 2026-01-19 - Updated the created gitignore file to better prevent committing pkg files.
@@ -29,7 +30,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.5.4"
+readonly SCRIPT_VERSION="1.6.0"
 readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -121,6 +122,7 @@ declare -a BLOCK_LOGGING
 declare -a README_ROWS
 SECRETS_USED=false
 declare -a SECRET_REMINDERS
+declare -a ONEPASSWORD_SECRETS  # Track 1Password secret references
 
 for i in {4..11}; do
     echo "--- Parameter $i ---"
@@ -134,23 +136,101 @@ for i in {4..11}; do
     if [[ "$is_secret" =~ ^[Yy] ]]; then
         SECRETS_USED=true
         BLOCK_HEADER+=("#   $var_name (Jamf: \$$i)")
-        BLOCK_VARIABLES+=("${var_name}=\"\${LOCAL_${var_name}:-\${${i}}}\"  # Secret: prefers local, falls back to Jamf \$$i")
 
-        # --- NEW SMART CHECK LOGIC START ---
-        SECRETS_FILE="$HOME/.jamf_secrets"
-        LOCAL_VAR_NAME="LOCAL_${var_name}"
+        # Ask where to store the secret
+        echo ""
+        echo "Where should this secret be stored?"
+        echo "  1) 1Password (recommended for team sharing)"
+        echo "  2) ~/.jamf_secrets (traditional local file)"
+        echo "  3) Skip (configure manually later)"
+        read -rp "Choice (1/2/3): " secret_storage
 
-        # Check if secrets file exists AND if the variable is defined in it
-        if [[ -f "$SECRETS_FILE" ]] && grep -q "^${LOCAL_VAR_NAME}=" "$SECRETS_FILE"; then
-            echo "   Found existing local secret: $LOCAL_VAR_NAME"
-            BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Loaded from existing local secret)\"")
-            README_ROWS+=("| $var_name | \$$i | \`$LOCAL_${var_name}\` (Existing) |")
-        else
-            echo "   Local secret missing. You will need to add it later."
-            BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Masked)\"")
-            SECRET_REMINDERS+=("${LOCAL_VAR_NAME}=\"REPLACE_WITH_REAL_SECRET\"")
-            README_ROWS+=("| $var_name | \$$i | \`$LOCAL_${var_name}\` (Secret) |")
-        fi
+        case "$secret_storage" in
+            1)
+                # 1Password storage
+                echo "1Password Configuration:"
+                read -rp "  Vault name [Private]: " op_vault
+                op_vault="${op_vault:-Private}"
+
+                read -rp "  Item name [jamf-${SCRIPT_NAME}]: " op_item
+                op_item="${op_item:-jamf-${SCRIPT_NAME}}"
+
+                # Convert variable name to lowercase for field name suggestion
+                field_suggestion=$(echo "$var_name" | tr '[:upper:]' '[:lower:]')
+                read -rp "  Field name [${field_suggestion}]: " op_field
+                op_field="${op_field:-${field_suggestion}}"
+
+                OP_REFERENCE="op://${op_vault}/${op_item}/${op_field}"
+
+                # Ask if they want to create the item now
+                if command -v op &> /dev/null; then
+                    read -rp "  Create/update this secret in 1Password now? (y/n): " create_now
+                    if [[ "$create_now" =~ ^[Yy] ]]; then
+                        read -rsp "  Enter secret value: " secret_value
+                        echo ""
+
+                        # Try to create or edit the item
+                        if op item get "$op_item" --vault "$op_vault" &>/dev/null; then
+                            echo "  Updating existing item..."
+                            op item edit "$op_item" --vault "$op_vault" "${op_field}[password]=$secret_value" &>/dev/null && \
+                                echo "  ✓ Secret updated in 1Password" || \
+                                echo "  ✗ Failed to update. You'll need to add it manually."
+                        else
+                            echo "  Creating new item..."
+                            op item create --category=password --title="$op_item" --vault="$op_vault" \
+                                "${op_field}[password]=$secret_value" &>/dev/null && \
+                                echo "  ✓ Secret created in 1Password" || \
+                                echo "  ✗ Failed to create. You'll need to add it manually."
+                        fi
+                    else
+                        SECRET_REMINDERS+=("1Password: ${OP_REFERENCE}")
+                    fi
+                else
+                    echo "  Warning: 1Password CLI not installed. Install with: brew install 1password-cli"
+                    SECRET_REMINDERS+=("1Password: ${OP_REFERENCE} (install 'op' CLI first)")
+                fi
+
+                # Generate 1Password-aware code
+                BLOCK_VARIABLES+=("# Fetch from 1Password with fallback to Jamf parameter")
+                BLOCK_VARIABLES+=("if command -v op &> /dev/null && op account list &> /dev/null 2>&1; then")
+                BLOCK_VARIABLES+=("    ${var_name}=\"\$(op read '${OP_REFERENCE}' 2>/dev/null || echo \"\${${i}}\")\"")
+                BLOCK_VARIABLES+=("else")
+                BLOCK_VARIABLES+=("    ${var_name}=\"\${${i}}\"  # Fallback to Jamf parameter")
+                BLOCK_VARIABLES+=("fi")
+
+                BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (1Password)\"")
+                README_ROWS+=("| $var_name | \$$i | \`${OP_REFERENCE}\` (1Password) |")
+                ONEPASSWORD_SECRETS+=("${OP_REFERENCE}")
+                ;;
+
+            2)
+                # Traditional ~/.jamf_secrets storage
+                BLOCK_VARIABLES+=("${var_name}=\"\${LOCAL_${var_name}:-\${${i}}}\"  # Secret: prefers local, falls back to Jamf \$$i")
+
+                SECRETS_FILE="$HOME/.jamf_secrets"
+                LOCAL_VAR_NAME="LOCAL_${var_name}"
+
+                # Check if secrets file exists AND if the variable is defined in it
+                if [[ -f "$SECRETS_FILE" ]] && grep -q "^${LOCAL_VAR_NAME}=" "$SECRETS_FILE"; then
+                    echo "   Found existing local secret: $LOCAL_VAR_NAME"
+                    BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Loaded from existing local secret)\"")
+                    README_ROWS+=("| $var_name | \$$i | \`$LOCAL_${var_name}\` (Existing) |")
+                else
+                    echo "   Local secret missing. You will need to add it later."
+                    BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Masked)\"")
+                    SECRET_REMINDERS+=("${LOCAL_VAR_NAME}=\"REPLACE_WITH_REAL_SECRET\"")
+                    README_ROWS+=("| $var_name | \$$i | \`$LOCAL_${var_name}\` (Secret) |")
+                fi
+                ;;
+
+            *)
+                # Skip - manual configuration
+                BLOCK_VARIABLES+=("${var_name}=\"\${${i}}\"  # TODO: Configure secret storage")
+                BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Masked)\"")
+                SECRET_REMINDERS+=("${var_name}: Configure secret storage manually")
+                README_ROWS+=("| $var_name | \$$i | Manual configuration required |")
+                ;;
+        esac
     else
         read -rp "Default Local Value: " param_default
         BLOCK_HEADER+=("#   \$$i: $param_label")
@@ -358,11 +438,34 @@ else
 fi)
 
 ## Local Testing
-1. Ensure \`~/.jamf_secrets\` exists (for secrets).
-2. Run:
-   \`\`\`bash
-   sudo ./$SCRIPT_NAME.sh
-   \`\`\`
+
+### Prerequisites
+$(if [ ${#ONEPASSWORD_SECRETS[@]} -gt 0 ]; then
+    echo "This script uses **1Password** for secret management. Ensure you have:"
+    echo "1. 1Password CLI installed: \`brew install 1password-cli\`"
+    echo "2. Authenticated to 1Password: \`op account list\`"
+    echo "3. Secrets stored in 1Password:"
+    printf '   - %s\n' "${ONEPASSWORD_SECRETS[@]}"
+    echo ""
+fi)
+$(if grep -q "LOCAL_" <<< "${BLOCK_VARIABLES[*]}" 2>/dev/null; then
+    echo "For traditional local secrets, ensure \`~/.jamf_secrets\` exists with required variables."
+    echo ""
+fi)
+
+### Run the script
+\`\`\`bash
+sudo ./$SCRIPT_NAME.sh
+\`\`\`
+
+### Testing 1Password Integration
+$(if [ ${#ONEPASSWORD_SECRETS[@]} -gt 0 ]; then
+    echo "Test secret retrieval:"
+    echo "\`\`\`bash"
+    printf 'op read "%s"\n' "${ONEPASSWORD_SECRETS[0]}"
+    echo "\`\`\`"
+    echo ""
+fi)
 
 ## Versioning
 This project uses [Semantic Versioning](https://semver.org/):
@@ -889,10 +992,45 @@ fi
 echo "  * bump-version.sh"
 echo ""
 
-if [ "$SECRETS_USED" = true ]; then
-    echo "WARNING: SECRETS CONFIGURATION NEEDED:"
-    echo "Add these to ~/.jamf_secrets:"
-    printf '   %s\n' "${SECRET_REMINDERS[@]}"
+if [ "$SECRETS_USED" = true ] && [ ${#SECRET_REMINDERS[@]} -gt 0 ]; then
+    echo "⚠️  SECRETS CONFIGURATION NEEDED:"
+
+    # Check if any 1Password secrets
+    if [ ${#ONEPASSWORD_SECRETS[@]} -gt 0 ]; then
+        echo ""
+        echo "1Password Secrets (ensure these exist):"
+        printf '   %s\n' "${ONEPASSWORD_SECRETS[@]}"
+        echo ""
+        echo "   Access secrets with: op read 'op://Vault/Item/field'"
+    fi
+
+    # Check if any traditional secrets or manual configs
+    has_traditional=false
+    for reminder in "${SECRET_REMINDERS[@]}"; do
+        if [[ "$reminder" != 1Password:* ]]; then
+            has_traditional=true
+            break
+        fi
+    done
+
+    if [ "$has_traditional" = true ]; then
+        echo ""
+        echo "Add these to ~/.jamf_secrets:"
+        for reminder in "${SECRET_REMINDERS[@]}"; do
+            if [[ "$reminder" != 1Password:* ]]; then
+                echo "   $reminder"
+            fi
+        done
+    fi
+
+    # Show any 1Password reminders (for items not created during generation)
+    for reminder in "${SECRET_REMINDERS[@]}"; do
+        if [[ "$reminder" == 1Password:* ]]; then
+            echo ""
+            echo "   $reminder"
+        fi
+    done
+
     echo ""
 fi
 

@@ -11,7 +11,8 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 [*] **Interactive Script Generation**
 - Guided wizard for parameter collection
 - Support for MDM parameters ($4-$11 for Jamf Pro)
-- Built-in secrets management via `~/.jamf_secrets`
+- **NEW in v1.6.0**: Multiple secret storage methods (1Password, file-based, or manual)
+- Built-in secrets management with 1Password CLI integration
 - Standard macOS variable library (serial number, logged in user, etc.)
 
 [+] **Production-Ready Output**
@@ -155,12 +156,12 @@ Installing enhanced pre-commit hooks (9 checks)...
 
 ## Core Components
 
-### 1. `shikomi` (v1.5.1)
+### 1. `shikomi` (v1.6.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
 - Standard macOS variable selection
-- Secrets management setup
+- Secrets management setup (1Password or file-based)
 
 **Version info:**
 ```bash
@@ -360,7 +361,78 @@ Capture errors and warnings separately:
 
 ## Secrets Management
 
-### Setup `~/.jamf_secrets`
+Shikomi supports **multiple secret storage methods**, giving you flexibility based on your team's workflow.
+
+### Method 1: 1Password (Recommended for Teams)
+
+When generating a script, Shikomi can integrate with 1Password CLI for secure, team-sharable secrets.
+
+#### Setup 1Password CLI
+
+```bash
+# Install 1Password CLI
+brew install 1password-cli
+
+# Authenticate (one-time setup)
+op account add
+```
+
+#### During Script Generation
+
+When you mark a parameter as a secret, you'll see:
+
+```
+Where should this secret be stored?
+  1) 1Password (recommended for team sharing)
+  2) ~/.jamf_secrets (traditional local file)
+  3) Skip (configure manually later)
+```
+
+Choose option 1 for 1Password integration. Shikomi will:
+1. Ask for vault name (default: `Private`)
+2. Ask for item name (default: `jamf-{script_name}`)
+3. Ask for field name (default: lowercase variable name)
+4. Optionally create/update the secret immediately
+
+#### Generated Code
+
+Scripts with 1Password secrets automatically fetch from 1Password at runtime:
+
+```bash
+# Fetch from 1Password with fallback to Jamf parameter
+if command -v op &> /dev/null && op account list &> /dev/null 2>&1; then
+    API_KEY="$(op read 'op://Private/jamf-my_script/api_key' 2>/dev/null || echo "${4}")"
+else
+    API_KEY="${4}"  # Fallback to Jamf parameter
+fi
+
+# Logs show masked values
+log "Config: API Key [API_KEY]: ******* (1Password)"
+```
+
+#### Benefits of 1Password Integration
+
+- Team-sharable secrets across your organization
+- No plaintext files to secure or accidentally commit
+- Automatic fallback to Jamf parameters if 1Password unavailable
+- Works seamlessly with existing 1Password workflows
+- Optional immediate secret creation during script generation
+
+#### Testing 1Password Secrets
+
+```bash
+# Test secret retrieval
+op read "op://Private/jamf-my_script/api_key"
+
+# Run script with 1Password integration
+sudo ./my_script.sh
+```
+
+### Method 2: File-Based Secrets (`~/.jamf_secrets`)
+
+For local development or simpler workflows, use traditional file-based secrets:
+
+#### Setup
 
 Create a secrets file for local testing:
 
@@ -376,17 +448,21 @@ EOF
 chmod 600 ~/.jamf_secrets
 ```
 
-### In Your Scripts
+#### Generated Code
 
 Shikomi automatically generates secret-aware code:
 
 ```bash
 # In generated script (when you mark parameter as secret)
-API_KEY="${API_KEY:-$LOCAL_API_KEY}"
+API_KEY="${LOCAL_API_KEY:-${4}}"
 
 # Logs show masked values
 log "Config: API Key [API_KEY]: ******* (Masked)"
 ```
+
+### Method 3: Manual Configuration
+
+Choose option 3 during generation to configure secrets manually later. Shikomi will add TODO comments to guide you.
 
 ---
 
@@ -525,13 +601,14 @@ For **existing projects**, use `add_security_tools.sh` to add enhanced hooks
 - Git
 
 ### Optional
+- [1Password CLI (`op`)](https://developer.1password.com/docs/cli/) - For 1Password secrets integration
 - [GitHub CLI (`gh`)](https://cli.github.com/) - For GitHub repo creation
 - [pre-commit](https://pre-commit.com/) - For security hooks
 - [Gitleaks](https://github.com/gitleaks/gitleaks) - For secret scanning
 
 Install optional tools:
 ```bash
-brew install gh pre-commit gitleaks
+brew install 1password-cli gh pre-commit gitleaks
 ```
 
 ---

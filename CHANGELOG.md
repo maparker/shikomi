@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-01-25
+
+### Added
+- Added 1Password integration for secret storage with interactive configuration during script generation
+
+
 ## [1.5.4] - 2026-01-19
 
 ### Fixed
