@@ -11,7 +11,7 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 [*] **Interactive Script Generation**
 - Guided wizard for parameter collection
 - Support for MDM parameters ($4-$11 for Jamf Pro)
-- **NEW in v1.6.0**: Multiple secret storage methods (1Password, file-based, or manual)
+- Multiple secret storage methods (1Password, file-based, or manual)
 - Built-in secrets management with 1Password CLI integration
 - Standard macOS variable library (serial number, logged in user, etc.)
 
@@ -33,7 +33,8 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 - Monorepo and micro-repo modes
 - Feature branch creation
 - GitHub integration via `gh` CLI
-- Optional GitHub Actions for CI/CD
+- Optional GitHub Actions for version validation
+- Optional GitHub Actions workflow to deploy scripts to Jamf Pro via API on merge
 
 ---
 

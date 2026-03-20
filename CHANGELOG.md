@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] - 2026-03-19
+
+### Added
+- Optional GitHub Actions workflow to deploy scripts to Jamf Pro on merge via the Jamf Pro API
+- Workflow authenticates via OAuth, detects create vs. update, and posts deployment summary
+
+### Removed
+- Removed bundled project-specific workflows (jamf-auto-patch.yml, validate-script.yml) that did not belong in the framework repo
+
 ## [1.7.1] - 2026-03-10
 
 ### Fixed
