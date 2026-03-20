@@ -140,7 +140,8 @@ echo "New version: $NEW_VERSION"
 echo "Change: $CHANGE_DESC"
 
 # Update version in script file header (only lines with actual version numbers, not variables)
-sed -i.bak "s/^# VERSION:     [0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
+# Match VERSION: followed by any amount of whitespace and a version number, preserving alignment
+sed -i.bak "s/^# VERSION:[[:space:]]*[0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
 
 # Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
 sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
@@ -153,32 +154,23 @@ sed -i.bak "0,/^# CHANGELOG$/s//# CHANGELOG\n$CHANGELOG_LINE/" "$SCRIPT_FILE"
 sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" README.md
 sed -i.bak "s/^\*\*Last Updated:\*\* .*$/\*\*Last Updated:\*\* $TODAY/" README.md
 
-# Update CHANGELOG.md (add new version section at top)
+# Update CHANGELOG.md (insert new version section before first existing version entry)
 if [[ -f "CHANGELOG.md" ]]; then
-    # Create temp file with new version entry
-    {
-        head -n 8 CHANGELOG.md
-        echo ""
-        echo "## [$NEW_VERSION] - $TODAY"
-        echo ""
-        case "$BUMP_TYPE" in
-            major)
-                echo "### Changed"
-                echo "- $CHANGE_DESC"
-                ;;
-            minor)
-                echo "### Added"
-                echo "- $CHANGE_DESC"
-                ;;
-            patch)
-                echo "### Fixed"
-                echo "- $CHANGE_DESC"
-                ;;
-        esac
-        echo ""
-        tail -n +9 CHANGELOG.md
-    } > CHANGELOG.md.tmp
-    mv CHANGELOG.md.tmp CHANGELOG.md
+    # Build the new entry block
+    NEW_ENTRY="## [$NEW_VERSION] - $TODAY\n"
+    case "$BUMP_TYPE" in
+        major) NEW_ENTRY+="\n### Changed\n- $CHANGE_DESC\n" ;;
+        minor) NEW_ENTRY+="\n### Added\n- $CHANGE_DESC\n" ;;
+        patch) NEW_ENTRY+="\n### Fixed\n- $CHANGE_DESC\n" ;;
+    esac
+
+    # Insert before the first '## [' version heading
+    if grep -q "^## \[" CHANGELOG.md; then
+        sed -i.bak "0,/^## \[/{s/^## \[/${NEW_ENTRY}\n## [/}" CHANGELOG.md
+    else
+        # No existing version entries — append to end
+        printf '\n%b\n' "$NEW_ENTRY" >> CHANGELOG.md
+    fi
 fi
 
 # Update munkipkg build-info if present (supports both JSON and plist formats)

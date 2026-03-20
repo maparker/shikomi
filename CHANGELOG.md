@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.1] - 2026-03-10
+
+### Fixed
+- Fixed logging functions to output to stderr - prevents stdout pollution in command substitution
+- Fixed LOG_FILE usage in generated scripts - stderr now tees to log file via `exec`
+- Fixed broken `$LOCAL_` variable expansion in README generation for traditional secrets
+- Fixed CHANGELOG.md insertion logic to use pattern matching instead of fragile line numbers
+- Fixed hardcoded `@prizepicks.com` email fallback in regular script template
+- Added input validation for script names to prevent path injection
+- Moved monorepo dirty-repo check before file creation to avoid orphaned files
+- Deduplicated pre-commit config blocks in add_security_tools.sh
+- Fixed VERSION header whitespace alignment for consistent sed matching
+
 ## [1.7.0] - 2026-01-25
 
 ### Added
@@ -26,30 +39,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added 1Password integration for secret storage with interactive configuration during script generation
 
-
 ## [1.5.4] - 2026-01-19
 
 ### Fixed
 - Updated bump-version.sh to only modify actual version numbers, not template variables
-
 
 ## [1.5.3] - 2026-01-19
 
 ### Fixed
 - Fixed version template to prevent generated scripts from inheriting shikomi's version number
 
-
-## [1.0.1] - 2026-01-19
-
-### Fixed
-- Fixed version template to prevent generated scripts from inheriting shikomi's version number
-
-
 ## [1.5.2] - 2026-01-19
 
 ### Fixed
 - Updated the created gitignore file to better prevent committing pkg files.
-
 
 ## [1.5.1] - 2026-01-18
 
@@ -82,17 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.1] - 2026-01-09
-
-### Fixed
-- Corrected permissions of bump-version so it does not require sudo
-
-
 ## [1.4.3] - 2026-01-09
 
 ### Fixed
 - Fixed secrets variable
-
 
 ## [1.4.2] - 2026-01-08
 

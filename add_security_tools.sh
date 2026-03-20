@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      add_security_tools.sh
-# VERSION:     1.0.1
+# VERSION:     1.1.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Adds security tools and checks to an existing Git repository
@@ -12,12 +12,14 @@
 #              - Enhanced .gitignore
 ################################################################################
 # CHANGELOG
+# 1.1.0 - 2026-03-11 - Added basic/enhanced pre-commit hook level prompt matching shikomi
 # 1.0.1 - 2026-01-19 - Fixed version template to prevent generated scripts from inheriting shikomi's version number
 # 1.0.0 - 2025-12-07 - Initial versioned release
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.0.1"
+readonly SCRIPT_VERSION="1.1.0"
+# shellcheck disable=SC2034
 readonly SCRIPT_NAME="add_security_tools"
 
 set -euo pipefail
@@ -78,13 +80,22 @@ fi
 
 # 2. Create .pre-commit-config.yaml
 if [[ "$SKIP_PRECOMMIT" == false ]]; then
+    WRITE_CONFIG=true
     if [[ -f ".pre-commit-config.yaml" ]]; then
         echo "⚠️  .pre-commit-config.yaml already exists"
         read -rp "Overwrite? (y/n): " overwrite
         if [[ ! "$overwrite" =~ ^[Yy] ]]; then
             echo "Skipping .pre-commit-config.yaml"
-        else
-            echo "Creating .pre-commit-config.yaml..."
+            WRITE_CONFIG=false
+        fi
+    fi
+
+    if [[ "$WRITE_CONFIG" == true ]]; then
+        echo "Pre-commit hooks protect against secrets and code quality issues."
+        read -rp "Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e): " hook_level
+
+        if [[ "$hook_level" =~ ^[Ee] ]]; then
+            # Enhanced: 9 hooks (secrets, linting, quality checks)
             cat > .pre-commit-config.yaml << 'EOF'
 repos:
   # Secret scanning with gitleaks
@@ -112,38 +123,18 @@ repos:
       - id: check-merge-conflict
       - id: detect-private-key
 EOF
-            echo "✓ .pre-commit-config.yaml created"
-        fi
-    else
-        echo "Creating .pre-commit-config.yaml..."
-        cat > .pre-commit-config.yaml << 'EOF'
+            echo "✓ Enhanced .pre-commit-config.yaml created (9 checks)"
+        else
+            # Basic: Just gitleaks for secret scanning
+            cat > .pre-commit-config.yaml << 'EOF'
 repos:
-  # Secret scanning with gitleaks
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.0
     hooks:
       - id: gitleaks
-
-  # Shell script linting
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
-    hooks:
-      - id: shellcheck
-        args: [--severity=warning]
-
-  # General checks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-        args: ['--maxkb=1000']
-      - id: check-merge-conflict
-      - id: detect-private-key
 EOF
-        echo "✓ .pre-commit-config.yaml created"
+            echo "✓ Basic .pre-commit-config.yaml created (secrets only)"
+        fi
     fi
 
     # Install hooks
@@ -376,7 +367,11 @@ echo "=============================================="
 echo ""
 echo "Added Security Tools:"
 if [[ "$SKIP_PRECOMMIT" == false ]]; then
-    echo "  ✓ Pre-commit hooks (gitleaks, shellcheck)"
+    if [[ "${hook_level:-b}" =~ ^[Ee] ]]; then
+        echo "  ✓ Pre-commit hooks - enhanced (gitleaks, shellcheck, 7 quality checks)"
+    else
+        echo "  ✓ Pre-commit hooks - basic (gitleaks only)"
+    fi
 fi
 echo "  ✓ GitHub Actions workflows"
 echo "  ✓ Pre-push version checks"

@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.6.0
+# VERSION:     1.7.1
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,8 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.7.1 - 2026-03-10 - Multiple fixes: LOG_FILE usage, input validation, CHANGELOG insertion, variable expansion, email fallback
+# 1.7.0 - 2026-01-25 - Added EA template support, multi-template generation, stderr logging fix
 # 1.6.0 - 2026-01-25 - Added 1Password integration for secret storage with interactive configuration during script generation
 # 1.5.4 - 2026-01-19 - Updated bump-version.sh to only modify actual version numbers, not template variables
 # 1.5.3 - 2026-01-19 - Fixed version template to prevent generated scripts from inheriting shikomi's version number
@@ -30,7 +32,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.6.0"
+readonly SCRIPT_VERSION="1.7.1"
 readonly GENERATOR_NAME="shikomi"
 
 # --- 0. Version/Help Check ---
@@ -66,6 +68,12 @@ if [[ -z "$SCRIPT_NAME" ]]; then
     exit 1
 fi
 
+# Validate script name — only allow safe characters for file paths, branches, and repo names
+if [[ ! "$SCRIPT_NAME" =~ ^[a-zA-Z0-9_-]+(\.[sS][hH])?$ ]]; then
+    echo "Error: Script name must contain only letters, numbers, hyphens, and underscores"
+    exit 1
+fi
+
 # Clean up extension
 SCRIPT_NAME="${SCRIPT_NAME%.sh}"
 
@@ -90,6 +98,20 @@ if git rev-parse --is-inside-work-tree &> /dev/null; then
         echo "Error: Script already exists: $SCRIPT_PATH"
         echo "Use a different name or delete the existing script first"
         exit 1
+    fi
+
+    # Safety Check: Are there uncommitted changes?
+    if [[ -n $(git status --porcelain) ]]; then
+        echo "Error: You have uncommitted changes in this repo."
+        echo "   Please commit or stash them before creating a new script."
+        exit 1
+    fi
+
+    # In monorepo mode, per-script scaffolding (README, CHANGELOG, bump-version) is optional
+    GENERATE_SCAFFOLDING=false
+    read -rp "Generate per-script README, CHANGELOG, and bump-version.sh? (y/n) [n]: " gen_scaffolding
+    if [[ "$gen_scaffolding" =~ ^[Yy] ]]; then
+        GENERATE_SCAFFOLDING=true
     fi
 else
     echo "=============================================="
@@ -256,12 +278,12 @@ for i in {4..11}; do
                 if [[ -f "$SECRETS_FILE" ]] && grep -q "^${LOCAL_VAR_NAME}=" "$SECRETS_FILE"; then
                     echo "   Found existing local secret: $LOCAL_VAR_NAME"
                     BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Loaded from existing local secret)\"")
-                    README_ROWS+=("| $var_name | \$$i | \`$LOCAL_${var_name}\` (Existing) |")
+                    README_ROWS+=("| $var_name | \$$i | \`${LOCAL_VAR_NAME}\` (Existing) |")
                 else
                     echo "   Local secret missing. You will need to add it later."
                     BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Masked)\"")
                     SECRET_REMINDERS+=("${LOCAL_VAR_NAME}=\"REPLACE_WITH_REAL_SECRET\"")
-                    README_ROWS+=("| $var_name | \$$i | \`$LOCAL_${var_name}\` (Secret) |")
+                    README_ROWS+=("| $var_name | \$$i | \`${LOCAL_VAR_NAME}\` (Secret) |")
                 fi
                 ;;
 
@@ -454,7 +476,7 @@ else
 # SCRIPT:      ${SCRIPT_NAME}.sh
 # VERSION:     ${INITIAL_VERSION}
 # AUTHOR:      $(git config user.name || echo "First Last")
-# EMAIL:       $(git config user.email || echo "first.last@prizepicks.com")
+# EMAIL:       $(git config user.email || echo "first.last@example.com")
 # DATE:        ${INITIAL_DATE}
 # Description: Fancy script that makes something cool happen on a Mac.
 #
@@ -470,10 +492,17 @@ $(printf '%s\n' "${BLOCK_HEADER[@]}")
 readonly SCRIPT_VERSION="${INITIAL_VERSION}"
 readonly SCRIPT_NAME="${SCRIPT_NAME}"
 
-# --- Local Development Secrets ---
-if [[ -f "\$HOME/.jamf_secrets" ]]; then
-    source "\$HOME/.jamf_secrets"
-fi
+$(if [ "$SECRETS_USED" = true ] && ! printf '%s\n' "${BLOCK_VARIABLES[@]}" | grep -q "op read"; then
+    echo '# --- Local Development Secrets ---'
+    echo 'if [[ -f "$HOME/.jamf_secrets" ]]; then'
+    echo '    source "$HOME/.jamf_secrets"'
+    echo 'fi'
+elif [ "$SECRETS_USED" = true ]; then
+    echo '# --- Local Development Secrets (fallback for non-1Password secrets) ---'
+    echo 'if [[ -f "$HOME/.jamf_secrets" ]]; then'
+    echo '    source "$HOME/.jamf_secrets"'
+    echo 'fi'
+fi)
 
 # --- Static Configuration ---
 $(printf '%s\n' "${STATIC_VARS[@]}")
@@ -482,11 +511,13 @@ $(printf '%s\n' "${STATIC_VARS[@]}")
 $(printf '%s\n' "${BLOCK_VARIABLES[@]}")
 
 # --- Logging Setup ---
+# shellcheck disable=SC2034
 LOG_FILE="/var/log/${SCRIPT_NAME}.log"
-function log() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] INFO: \$*"; }
+exec 2> >(tee -a "\$LOG_FILE" >&2)
+function log() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] INFO: \$*" >&2; }
 function log_warn() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] WARN: \$*" >&2; }
 function log_error() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] ERROR: \$*" >&2; }
-function log_success() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: \$*"; }
+function log_success() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: \$*" >&2; }
 
 # --- Main Logic ---
 log "Starting \$SCRIPT_NAME v\$SCRIPT_VERSION..."
@@ -502,6 +533,12 @@ fi
 chmod +x "$SCRIPT_PATH"
 
 # --- 4. Generate README.md ---
+# In new project mode, always generate docs
+if [ "$IS_MONOREPO" != true ]; then
+    GENERATE_SCAFFOLDING=true
+fi
+
+if [ "$GENERATE_SCAFFOLDING" = true ]; then
 echo "Generating README..."
 
 if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
@@ -655,15 +692,20 @@ To bump the version, use the provided version bump script:
 \`\`\`
 EOF
 fi
+fi  # end GENERATE_SCAFFOLDING (README)
 
 # --- 5. Generate Version Bump Utility ---
+# For new project mode, cd into the project dir (needed for git init later)
+if [ "$IS_MONOREPO" != true ]; then
+    cd "$PROJECT_DIR" || exit
+fi
+
+if [ "$GENERATE_SCAFFOLDING" = true ]; then
 echo "Generating bump-version.sh..."
 
-# For monorepo, create in current dir; for new project, create in project dir
 if [ "$IS_MONOREPO" = true ]; then
     BUMP_PATH="$PROJECT_DIR/bump-version.sh"
 else
-    cd "$PROJECT_DIR" || exit
     BUMP_PATH="./bump-version.sh"
 fi
 
@@ -796,7 +838,8 @@ echo "New version: $NEW_VERSION"
 echo "Change: $CHANGE_DESC"
 
 # Update version in script file header (only lines with actual version numbers, not variables)
-sed -i.bak "s/^# VERSION:[[:space:]]*[0-9][0-9.]*$/# VERSION:        $NEW_VERSION/" "$SCRIPT_FILE"
+# Match VERSION: followed by any amount of whitespace and a version number, preserving alignment
+sed -i.bak "s/^# VERSION:[[:space:]]*[0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
 
 # Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
 sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
@@ -809,32 +852,23 @@ sed -i.bak "0,/^# CHANGELOG$/s//# CHANGELOG\n$CHANGELOG_LINE/" "$SCRIPT_FILE"
 sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" README.md
 sed -i.bak "s/^\*\*Last Updated:\*\* .*$/\*\*Last Updated:\*\* $TODAY/" README.md
 
-# Update CHANGELOG.md (add new version section at top)
+# Update CHANGELOG.md (insert new version section before first existing version entry)
 if [[ -f "CHANGELOG.md" ]]; then
-    # Create temp file with new version entry
-    {
-        head -n 8 CHANGELOG.md
-        echo ""
-        echo "## [$NEW_VERSION] - $TODAY"
-        echo ""
-        case "$BUMP_TYPE" in
-            major)
-                echo "### Changed"
-                echo "- $CHANGE_DESC"
-                ;;
-            minor)
-                echo "### Added"
-                echo "- $CHANGE_DESC"
-                ;;
-            patch)
-                echo "### Fixed"
-                echo "- $CHANGE_DESC"
-                ;;
-        esac
-        echo ""
-        tail -n +9 CHANGELOG.md
-    } > CHANGELOG.md.tmp
-    mv CHANGELOG.md.tmp CHANGELOG.md
+    # Build the new entry block
+    NEW_ENTRY="## [$NEW_VERSION] - $TODAY\n"
+    case "$BUMP_TYPE" in
+        major) NEW_ENTRY+="\n### Changed\n- $CHANGE_DESC\n" ;;
+        minor) NEW_ENTRY+="\n### Added\n- $CHANGE_DESC\n" ;;
+        patch) NEW_ENTRY+="\n### Fixed\n- $CHANGE_DESC\n" ;;
+    esac
+
+    # Insert before the first '## [' version heading
+    if grep -q "^## \[" CHANGELOG.md; then
+        sed -i.bak "0,/^## \[/{s/^## \[/${NEW_ENTRY}\n## [/}" CHANGELOG.md
+    else
+        # No existing version entries — append to end
+        printf '\n%b\n' "$NEW_ENTRY" >> CHANGELOG.md
+    fi
 fi
 
 # Update munkipkg build-info if present (supports both JSON and plist formats)
@@ -891,20 +925,14 @@ else
     [ "$SECRETS_USED" = true ] && echo "- Secure secrets management"
 fi)
 EOF
+fi  # end GENERATE_SCAFFOLDING (CHANGELOG)
 
 # --- 6. Branching Git Logic ---
 
 if [ "$IS_MONOREPO" = true ]; then
     # --- EXISTING REPO FLOW ---
 
-    # 1. Safety Check: Are there uncommitted changes?
-    if [[ -n $(git status --porcelain) ]]; then
-        echo "Error: You have uncommitted changes in this repo."
-        echo "   Please commit or stash them before creating a new script."
-        exit 1
-    fi
-
-    # 2. Prompt for Branching
+    # Prompt for Branching
     echo "You are in an existing Git repository."
     read -rp "Do you want to create a new branch for this script? (Recommended) (y/n): " do_branch
 
@@ -936,7 +964,11 @@ if [ "$IS_MONOREPO" = true ]; then
 
     # 3. Add the files
     echo "Staging files..."
-    git add "$SCRIPT_PATH" "$README_PATH" "$CHANGELOG_PATH" "$BUMP_PATH"
+    if [ "$GENERATE_SCAFFOLDING" = true ]; then
+        git add "$SCRIPT_PATH" "$README_PATH" "$CHANGELOG_PATH" "$BUMP_PATH"
+    else
+        git add "$SCRIPT_PATH"
+    fi
 
     echo "Files staged on branch: $(git branch --show-current)"
     echo "   Next Step: git commit -m 'Add $SCRIPT_NAME script'"
@@ -1161,15 +1193,18 @@ echo ""
 echo "Generated Files:"
 echo "  * ${SCRIPT_NAME}.sh (v1.0.0)"
 if [ "$IS_MONOREPO" = true ]; then
-    echo "  * ${SCRIPT_NAME}_README.md"
-    echo "  * ${SCRIPT_NAME}_CHANGELOG.md"
+    if [ "$GENERATE_SCAFFOLDING" = true ]; then
+        echo "  * ${SCRIPT_NAME}_README.md"
+        echo "  * ${SCRIPT_NAME}_CHANGELOG.md"
+        echo "  * bump-version.sh"
+    fi
 else
     echo "  * README.md"
     echo "  * CHANGELOG.md"
     echo "  * .gitignore"
+    echo "  * bump-version.sh"
     [[ -f ".github/workflows/validate-version.yml" ]] && echo "  * .github/workflows/validate-version.yml"
 fi
-echo "  * bump-version.sh"
 echo ""
 
 if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
