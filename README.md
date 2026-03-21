@@ -157,7 +157,7 @@ Installing enhanced pre-commit hooks (9 checks)...
 
 ## Core Components
 
-### 1. `shikomi` (v1.6.0)
+### 1. `shikomi` (v1.8.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables
@@ -170,16 +170,16 @@ shikomi --version  # Show version
 shikomi --help     # Show usage
 ```
 
-### 2. `bump-version` (v1.1.0)
+### 2. `bump-version` (v1.2.0)
 Semantic version management utility:
 ```bash
-# Initialize versioning for existing scripts
-bump-version my_script.sh init "Initial versioned release"
-
 # Bump version with change description
 bump-version my_script.sh patch "Fixed bug in user detection"
 bump-version my_script.sh minor "Added notification support"
 bump-version my_script.sh major "Breaking: Changed API interface"
+
+# Bump and commit in one step
+bump-version my_script.sh patch "Fixed bug" --commit
 ```
 
 **munkipkg Integration:**
@@ -195,7 +195,7 @@ bump-version my_script.sh minor "Added new feature"
 # Output: Updating munkipkg version in: pkg/build-info.json
 ```
 
-### 3. `add_security_tools.sh` (v1.0.0)
+### 3. `add_security_tools.sh` (v1.1.0)
 Security tooling setup for repositories:
 - Installs Gitleaks for secret scanning
 - Configures pre-commit hooks
@@ -679,12 +679,13 @@ brew install 1password-cli gh pre-commit gitleaks
 4. **Bump Version**
    ```bash
    bump-version my_feature.sh patch "Implemented user validation"
+
+   # Or bump and commit in one step
+   bump-version my_feature.sh patch "Implemented user validation" --commit
    ```
 
-5. **Commit & Push**
+5. **Push**
    ```bash
-   git add .
-   git commit -m "feat: add my_feature script"
    git push
    ```
 

@@ -12,7 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
-# 1.8.0 - 2026-03-19 - Added optional Jamf Pro deploy workflow, removed bundled project-specific workflows
+# 1.8.0 - 2026-03-20 - Added optional Jamf Pro deploy workflow, --commit flag for bump-version, removed bundled workflows
 # 1.7.1 - 2026-03-10 - Multiple fixes: LOG_FILE usage, input validation, CHANGELOG insertion, variable expansion, email fallback
 # 1.7.0 - 2026-01-25 - Added EA template support, multi-template generation, stderr logging fix
 # 1.6.0 - 2026-01-25 - Added 1Password integration for secret storage with interactive configuration during script generation
@@ -717,17 +717,35 @@ cat > "$BUMP_PATH" << 'BUMP_EOF'
 # SCRIPT: bump-version.sh
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
-# USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
+# USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
+#
+# OPTIONS:
+#   --commit    Stage and commit all version changes automatically
 #
 # EXAMPLES:
 #   Auto-detect script:
 #     ./bump-version.sh patch "Fixed bug in parameter validation"
+#     ./bump-version.sh patch "Fixed bug in parameter validation" --commit
 #
 #   Specify script explicitly:
 #     ./bump-version.sh my_script.sh minor "Added new feature"
+#     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 
 set -euo pipefail
+
+# Check for --commit flag (can appear as last argument)
+AUTO_COMMIT=false
+args=("$@")
+clean_args=()
+for arg in "${args[@]}"; do
+    if [[ "$arg" == "--commit" ]]; then
+        AUTO_COMMIT=true
+    else
+        clean_args+=("$arg")
+    fi
+done
+set -- "${clean_args[@]}"
 
 # Parse arguments - support both modes:
 # Mode 1: ./bump-version.sh <bump_type> "description"  (auto-detect script)
@@ -894,11 +912,46 @@ rm -f "$SCRIPT_FILE.bak" README.md.bak CHANGELOG.md.bak 2>/dev/null || true
 echo ""
 echo "SUCCESS: Version bumped to $NEW_VERSION"
 echo ""
-echo "Next steps:"
-echo "  1. Review changes: git diff"
-echo "  2. Commit changes: git add . && git commit -m \"chore: bump version to $NEW_VERSION\""
-echo "  3. Tag release: git tag -a \"v$NEW_VERSION\" -m \"$CHANGE_DESC\""
-echo "  4. Push changes: git push && git push --tags"
+
+if [[ "$AUTO_COMMIT" == true ]]; then
+    # Check for unrelated uncommitted changes
+    BUMP_FILES=("$SCRIPT_FILE" "README.md")
+    [[ -f "CHANGELOG.md" ]] && BUMP_FILES+=("CHANGELOG.md")
+    for build_info_path in build-info.json pkg/build-info.json build/build-info.json build-info.plist pkg/build-info.plist build/build-info.plist; do
+        [[ -f "$build_info_path" ]] && BUMP_FILES+=("$build_info_path")
+    done
+
+    # Check if there are changes beyond what bump-version touched
+    for changed_file in $(git diff --name-only); do
+        is_bump_file=false
+        for bf in "${BUMP_FILES[@]}"; do
+            if [[ "$changed_file" == "$bf" ]]; then
+                is_bump_file=true
+                break
+            fi
+        done
+        if [[ "$is_bump_file" == false ]]; then
+            echo "Error: Found uncommitted changes in $changed_file that are not from bump-version"
+            echo "Please commit or stash unrelated changes first, then re-run with --commit"
+            exit 1
+        fi
+    done
+
+    echo "Staging and committing version bump..."
+    git add "${BUMP_FILES[@]}"
+    git commit -m "chore: bump version to $NEW_VERSION — $CHANGE_DESC"
+
+    echo ""
+    echo "Next steps:"
+    echo "  1. Tag release: git tag -a \"v$NEW_VERSION\" -m \"$CHANGE_DESC\""
+    echo "  2. Push changes: git push && git push --tags"
+else
+    echo "Next steps:"
+    echo "  1. Review changes: git diff"
+    echo "  2. Commit changes: git add . && git commit -m \"chore: bump version to $NEW_VERSION\""
+    echo "  3. Tag release: git tag -a \"v$NEW_VERSION\" -m \"$CHANGE_DESC\""
+    echo "  4. Push changes: git push && git push --tags"
+fi
 BUMP_EOF
 
 chmod +x "$BUMP_PATH"

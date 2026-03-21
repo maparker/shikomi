@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.8.0] - 2026-03-19
+## [1.8.0] - 2026-03-20
 
 ### Added
 - Optional GitHub Actions workflow to deploy scripts to Jamf Pro on merge via the Jamf Pro API
 - Workflow authenticates via OAuth, detects create vs. update, and posts deployment summary
+- Added `--commit` flag to `bump-version` for automatic staging and committing of version bumps
+- Deploy workflow prompt is only offered after accepting PR validation workflow
+- Bumped `bump-version.sh` to v1.2.0
 
 ### Removed
 - Removed bundled project-specific workflows (jamf-auto-patch.yml, validate-script.yml) that did not belong in the framework repo
