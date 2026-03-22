@@ -95,6 +95,8 @@ cd shikomi
 # Make scripts executable
 chmod +x shikomi.sh bump-version.sh add_security_tools.sh
 
+# Note: shikomi.sh sources lib/*.sh at runtime — keep the lib/ directory alongside it
+
 # Use with ./
 ./shikomi.sh my_awesome_script
 ./bump-version.sh my_script.sh patch "Fixed bug"
@@ -157,7 +159,7 @@ Installing enhanced pre-commit hooks (9 checks)...
 
 ## Core Components
 
-### 1. `shikomi` (v1.8.0)
+### 1. `shikomi` (v1.9.0)
 Main script generator with intelligent wizards for:
 - MDM parameter collection
 - Static configuration variables

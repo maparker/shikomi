@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      install.sh
-# VERSION:     1.1.1
+# VERSION:     1.2.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-20
 # DESCRIPTION: Installation script for Shikomi CLI tools
@@ -10,6 +10,7 @@
 # USAGE: ./install.sh [--user|--system|--update|--uninstall]
 ################################################################################
 # CHANGELOG
+# 1.2.0 - 2026-03-22 - Added lib/ directory install, uninstall, and update support
 # 1.1.1 - 2026-01-09 - Corrected permissions of bump-version so it does not require sudo
 # 1.1.0 - 2025-12-20 - Added --update flag for easy updates
 # 1.0.0 - 2025-12-20 - Initial release with install/uninstall functionality
@@ -17,7 +18,7 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.1.1"
+readonly SCRIPT_VERSION="1.2.0"
 readonly SCRIPT_NAME="install"
 
 # Colors for output
@@ -36,6 +37,8 @@ TOOLS=(
 # Installation directories
 USER_BIN_DIR="$HOME/.local/bin"
 SYSTEM_BIN_DIR="/usr/local/bin"
+USER_LIB_DIR="$HOME/.local/lib/shikomi/lib"
+SYSTEM_LIB_DIR="/usr/local/lib/shikomi/lib"
 
 ################################################################################
 # Functions
@@ -119,6 +122,11 @@ function verify_source_files() {
         fi
     done
 
+    if [[ ! -d "lib" ]]; then
+        log_error "Source directory not found: lib/"
+        missing=1
+    fi
+
     if [[ $missing -eq 1 ]]; then
         log_error "Please run this script from the shikomi repository root directory"
         exit 1
@@ -160,6 +168,26 @@ function install_tools() {
 
         log_success "Installed: $target_path"
     done
+
+    # Install lib/ directory
+    local lib_dir
+    if [[ "$install_dir" == "$SYSTEM_BIN_DIR" ]]; then
+        lib_dir="$SYSTEM_LIB_DIR"
+    else
+        lib_dir="$USER_LIB_DIR"
+    fi
+
+    log_info "Installing lib/ to $lib_dir..."
+    if [[ "$needs_sudo" == "true" ]]; then
+        sudo mkdir -p "$lib_dir"
+        sudo cp lib/*.sh "$lib_dir/"
+        sudo chmod 644 "$lib_dir"/*.sh
+    else
+        mkdir -p "$lib_dir"
+        cp lib/*.sh "$lib_dir/"
+        chmod 644 "$lib_dir"/*.sh
+    fi
+    log_success "Installed lib/ ($lib_dir)"
 
     echo ""
     log_success "Installation complete!"
@@ -216,6 +244,21 @@ function uninstall_tools() {
                 log_success "Removed: $target_path"
             fi
         done
+    done
+
+    # Remove lib directories
+    for lib_dir in "$USER_LIB_DIR" "$SYSTEM_LIB_DIR"; do
+        if [[ -d "$lib_dir" ]]; then
+            local parent_dir
+            parent_dir="$(dirname "$lib_dir")"
+            if [[ "$lib_dir" == "$SYSTEM_LIB_DIR" ]]; then
+                sudo rm -rf "$parent_dir"
+            else
+                rm -rf "$parent_dir"
+            fi
+            log_success "Removed: $parent_dir"
+            found=1
+        fi
     done
 
     echo ""

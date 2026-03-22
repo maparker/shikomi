@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.8.0
+# VERSION:     1.9.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 1.9.0 - 2026-03-22 - Extracted monolithic script into modular lib/ structure (6 sourced library files)
 # 1.8.0 - 2026-03-22 - Added Jamf Pro deploy workflow, --commit flag, portable bump-version, monorepo path resolution, removed bundled workflows
 # 1.7.1 - 2026-03-10 - Multiple fixes: LOG_FILE usage, input validation, CHANGELOG insertion, variable expansion, email fallback
 # 1.7.0 - 2026-01-25 - Added EA template support, multi-template generation, stderr logging fix
@@ -33,9 +34,28 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.8.0"
+readonly SCRIPT_VERSION="1.9.0"
 readonly GENERATOR_NAME="shikomi"
 SHIKOMI_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# --- Resolve and source lib/ ---
+if [[ -d "$SHIKOMI_DIR/lib" ]]; then
+    SHIKOMI_LIB="$SHIKOMI_DIR/lib"
+elif [[ -d "$HOME/.local/lib/shikomi/lib" ]]; then
+    SHIKOMI_LIB="$HOME/.local/lib/shikomi/lib"
+elif [[ -d "/usr/local/lib/shikomi/lib" ]]; then
+    SHIKOMI_LIB="/usr/local/lib/shikomi/lib"
+else
+    echo "Error: Cannot find shikomi lib/ directory"
+    exit 1
+fi
+
+source "$SHIKOMI_LIB/templates.sh"
+source "$SHIKOMI_LIB/readme.sh"
+source "$SHIKOMI_LIB/docs.sh"
+source "$SHIKOMI_LIB/workflows.sh"
+source "$SHIKOMI_LIB/git-setup.sh"
+source "$SHIKOMI_LIB/collection.sh"
 
 # --- 0. Version/Help Check ---
 if [[ "$1" == "--version" ]] || [[ "$1" == "-v" ]]; then
@@ -176,7 +196,7 @@ echo ""
 
 echo "Target: $SCRIPT_PATH"
 
-# --- 2. Interactive Wizard ---
+# --- 3. Interactive Wizard: Parameter Collection ---
 declare -a BLOCK_HEADER
 declare -a BLOCK_VARIABLES
 declare -a BLOCK_LOGGING
@@ -200,7 +220,6 @@ for i in {4..11}; do
     read -rp "Is this a secret? (y/n): " is_secret
 
     if [[ "$is_secret" =~ ^[Yy] ]]; then
-        SECRETS_USED=true
         BLOCK_HEADER+=("#   $var_name (Jamf: \$$i)")
 
         # Ask where to store the secret
@@ -256,55 +275,20 @@ for i in {4..11}; do
                     SECRET_REMINDERS+=("1Password: ${OP_REFERENCE} (install 'op' CLI first)")
                 fi
 
-                # Generate 1Password-aware code
-                BLOCK_VARIABLES+=("# Fetch from 1Password with fallback to Jamf parameter")
-                BLOCK_VARIABLES+=("if command -v op &> /dev/null && op account list &> /dev/null 2>&1; then")
-                BLOCK_VARIABLES+=("    ${var_name}=\"\$(op read '${OP_REFERENCE}' 2>/dev/null || echo \"\${${i}}\")\"")
-                BLOCK_VARIABLES+=("else")
-                BLOCK_VARIABLES+=("    ${var_name}=\"\${${i}}\"  # Fallback to Jamf parameter")
-                BLOCK_VARIABLES+=("fi")
-
-                BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (1Password)\"")
-                README_ROWS+=("| $var_name | \$$i | \`${OP_REFERENCE}\` (1Password) |")
-                ONEPASSWORD_SECRETS+=("${OP_REFERENCE}")
+                apply_secret_parameter_1password "$i" "$param_label" "$var_name" "$op_vault" "$op_item" "$op_field"
                 ;;
 
             2)
-                # Traditional ~/.jamf_secrets storage
-                BLOCK_VARIABLES+=("${var_name}=\"\${LOCAL_${var_name}:-\${${i}}}\"  # Secret: prefers local, falls back to Jamf \$$i")
-
-                SECRETS_FILE="$HOME/.jamf_secrets"
-                LOCAL_VAR_NAME="LOCAL_${var_name}"
-
-                # Check if secrets file exists AND if the variable is defined in it
-                if [[ -f "$SECRETS_FILE" ]] && grep -q "^${LOCAL_VAR_NAME}=" "$SECRETS_FILE"; then
-                    echo "   Found existing local secret: $LOCAL_VAR_NAME"
-                    BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Loaded from existing local secret)\"")
-                    README_ROWS+=("| $var_name | \$$i | \`${LOCAL_VAR_NAME}\` (Existing) |")
-                else
-                    echo "   Local secret missing. You will need to add it later."
-                    BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Masked)\"")
-                    SECRET_REMINDERS+=("${LOCAL_VAR_NAME}=\"REPLACE_WITH_REAL_SECRET\"")
-                    README_ROWS+=("| $var_name | \$$i | \`${LOCAL_VAR_NAME}\` (Secret) |")
-                fi
+                apply_secret_parameter_local "$i" "$param_label" "$var_name"
                 ;;
 
             *)
-                # Skip - manual configuration
-                BLOCK_VARIABLES+=("${var_name}=\"\${${i}}\"  # TODO: Configure secret storage")
-                BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Masked)\"")
-                SECRET_REMINDERS+=("${var_name}: Configure secret storage manually")
-                README_ROWS+=("| $var_name | \$$i | Manual configuration required |")
+                apply_secret_parameter_manual "$i" "$param_label" "$var_name"
                 ;;
         esac
     else
         read -rp "Default Local Value: " param_default
-        BLOCK_HEADER+=("#   \$$i: $param_label")
-        BLOCK_VARIABLES+=("${var_name}=\"\${${i}:-\"${param_default}\"}\"")
-        BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: \$$var_name\"")
-
-        # Add to README (Visible)
-        README_ROWS+=("| $i | $param_label | \`$param_default\` |")
+        apply_jamf_parameter "$i" "$param_label" "$var_name" "$param_default"
     fi
 done
 
@@ -314,7 +298,7 @@ else
     echo ""
 fi
 
-# --- 2.5. Static Configuration Variables (Non-Jamf Parameters) ---
+# --- 3.5. Static Configuration Variables (Non-Jamf Parameters) ---
 echo ""
 if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
     echo "--- Data Collection Variables ---"
@@ -329,51 +313,10 @@ declare -a STATIC_VARS
 declare -a STATIC_README_ROWS
 
 if [[ "$add_static" =~ ^[Yy] ]]; then
-    # Define standard macOS variables library
-    declare -A STANDARD_VARS_NAMES=(
-        [1]="SERIAL_NUMBER"
-        [2]="LOGGED_IN_USER"
-        [3]="COMPUTER_NAME"
-        [4]="OS_VERSION"
-        [5]="MODEL_IDENTIFIER"
-        [6]="PRIMARY_IP"
-        [7]="HOSTNAME"
-        [8]="MAC_ADDRESS"
-        [9]="CURRENT_USER_HOME"
-        [10]="BOOT_VOLUME"
-        [11]="TOTAL_RAM_GB"
-        [12]="PROCESSOR_NAME"
-    )
-
-    declare -A STANDARD_VARS_COMMANDS=(
-        [1]='$(system_profiler SPHardwareDataType | awk '\''/Serial/ {print $4}'\'')'
-        [2]='$(stat -f%Su /dev/console)'
-        [3]='$(scutil --get ComputerName)'
-        [4]='$(sw_vers -productVersion)'
-        [5]='$(sysctl -n hw.model)'
-        [6]='$(ipconfig getifaddr en0 || ipconfig getifaddr en1)'
-        [7]='$(hostname)'
-        [8]='$(ifconfig en0 | awk '\''/ether/ {print $2}'\'')'
-        [9]='$(eval echo ~$(stat -f%Su /dev/console))'
-        [10]='$(diskutil info / | awk '\''/Volume Name/ {print $3}'\'')'
-        [11]='$(echo "scale=2; $(sysctl -n hw.memsize) / 1073741824" | bc)'
-        [12]='$(sysctl -n machdep.cpu.brand_string)'
-    )
-
-    declare -A STANDARD_VARS_DESCRIPTIONS=(
-        [1]="Mac serial number"
-        [2]="Currently logged in user"
-        [3]="Computer name from System Preferences"
-        [4]="macOS version number"
-        [5]="Hardware model identifier"
-        [6]="Primary network IP address"
-        [7]="Network hostname"
-        [8]="Primary MAC address"
-        [9]="Home directory of logged in user"
-        [10]="Name of boot volume"
-        [11]="Total RAM in gigabytes"
-        [12]="CPU processor name"
-    )
+    declare -A STANDARD_VARS_NAMES
+    declare -A STANDARD_VARS_COMMANDS
+    declare -A STANDARD_VARS_DESCRIPTIONS
+    get_standard_vars_library
 
     echo ""
     echo "Select from standard macOS variables (enter numbers separated by spaces):"
@@ -409,381 +352,49 @@ if [[ "$add_static" =~ ^[Yy] ]]; then
                     read -rp "Value: " static_value
                     read -rp "Description: " static_desc
 
-                    STATIC_VARS+=("readonly ${static_name}=\"${static_value}\"  # ${static_desc}")
-                    STATIC_README_ROWS+=("| ${static_name} | Static | \`${static_value}\` | ${static_desc} |")
+                    apply_custom_var "$static_name" "$static_value" "$static_desc"
                 done
             elif [[ "$num" =~ ^[1-9][0-9]*$ ]] && [[ -n "${STANDARD_VARS_NAMES[$num]}" ]]; then
-                # Standard variable
-                var_name="${STANDARD_VARS_NAMES[$num]}"
-                var_cmd="${STANDARD_VARS_COMMANDS[$num]}"
-                var_desc="${STANDARD_VARS_DESCRIPTIONS[$num]}"
-
-                STATIC_VARS+=("${var_name}=\"${var_cmd}\"  # ${var_desc}")
-                STATIC_README_ROWS+=("| ${var_name} | Runtime | Dynamic | ${var_desc} |")
-                echo "  Added: $var_name"
+                apply_standard_var "$num"
             fi
         done
     fi
 fi
 
-# --- 3. Generate Script ---
+# --- 4. Generate Script ---
 # Use variables to prevent bump-version.sh from modifying the template
 INITIAL_VERSION="1.0.0"
 INITIAL_DATE="$(date +%Y-%m-%d)"
 
 if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
-    # Extension Attribute Template
-    cat > "$SCRIPT_PATH" << EOF
-#!/bin/bash
-
-##################################################################
-# SCRIPT:         ${SCRIPT_NAME}.sh
-# VERSION:        ${INITIAL_VERSION}
-# DESCRIPTION:    Extension Attribute for Jamf Pro inventory reporting
-#
-# AUTHOR:         $(git config user.name || echo "First Last")
-# EMAIL:          $(git config user.email || echo "first.last@example.com")
-##################################################################
-#
-# History
-# ${INITIAL_VERSION} - ${INITIAL_DATE} - Initial release
-#
-##################################################################
-
-# --- Script Metadata ---
-readonly SCRIPT_VERSION="${INITIAL_VERSION}"
-
-# --- Static Configuration ---
-$(printf '%s\n' "${STATIC_VARS[@]}")
-
-# --- Data Collection Logic ---
-# TODO: Add your data collection logic here
-# Example with error handling:
-# RESULT=\$(command_to_get_data 2>/dev/null)
-# RESULT="\${RESULT:-Not Available}"  # Fallback if empty or command fails
-
-# --- Output Result ---
-# Extension Attributes MUST output in this format:
-RESULT="Not Configured"
-
-echo "<result>\${RESULT}</result>"
-exit 0
-EOF
+    generate_ea_script
 else
-    # Regular Script Template
-    cat > "$SCRIPT_PATH" << EOF
-#!/bin/bash
-
-################################################################################
-# SCRIPT:      ${SCRIPT_NAME}.sh
-# VERSION:     ${INITIAL_VERSION}
-# AUTHOR:      $(git config user.name || echo "First Last")
-# EMAIL:       $(git config user.email || echo "first.last@example.com")
-# DATE:        ${INITIAL_DATE}
-# Description: Fancy script that makes something cool happen on a Mac.
-#
-################################################################################
-# PARAMETERS:
-$(printf '%s\n' "${BLOCK_HEADER[@]}")
-################################################################################
-# CHANGELOG
-# ${INITIAL_VERSION} - ${INITIAL_DATE} - Initial release
-################################################################################
-
-# --- Script Metadata ---
-readonly SCRIPT_VERSION="${INITIAL_VERSION}"
-readonly SCRIPT_NAME="${SCRIPT_NAME}"
-
-$(if [ "$SECRETS_USED" = true ] && ! printf '%s\n' "${BLOCK_VARIABLES[@]}" | grep -q "op read"; then
-    echo '# --- Local Development Secrets ---'
-    echo '# This block is for local testing only. On managed endpoints (via Jamf Pro),'
-    echo '# this file will not exist and secrets are delivered through parameters ($4-$11).'
-    echo 'if [[ -f "$HOME/.jamf_secrets" ]]; then'
-    echo '    source "$HOME/.jamf_secrets"'
-    echo 'fi'
-elif [ "$SECRETS_USED" = true ]; then
-    echo '# --- Local Development Secrets (fallback for non-1Password secrets) ---'
-    echo '# This block is for local testing only. On managed endpoints (via Jamf Pro),'
-    echo '# this file will not exist and secrets are delivered through parameters ($4-$11).'
-    echo 'if [[ -f "$HOME/.jamf_secrets" ]]; then'
-    echo '    source "$HOME/.jamf_secrets"'
-    echo 'fi'
-fi)
-
-# --- Static Configuration ---
-$(printf '%s\n' "${STATIC_VARS[@]}")
-
-# --- Configuration (Jamf Parameters) ---
-$(printf '%s\n' "${BLOCK_VARIABLES[@]}")
-
-# --- Logging Setup ---
-# shellcheck disable=SC2034
-LOG_FILE="/var/log/${SCRIPT_NAME}.log"
-exec 2> >(tee -a "\$LOG_FILE" >&2)
-function log() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] INFO: \$*" >&2; }
-function log_warn() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] WARN: \$*" >&2; }
-function log_error() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] ERROR: \$*" >&2; }
-function log_success() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: \$*" >&2; }
-
-# --- Main Logic ---
-log "Starting \$SCRIPT_NAME v\$SCRIPT_VERSION..."
-$(printf '%s\n' "${BLOCK_LOGGING[@]}")
-
-log "----------------------------------------"
-# TODO: Add logic here
-log "\$SCRIPT_NAME completed successfully"
-exit 0
-EOF
+    generate_regular_script
 fi
 
-chmod +x "$SCRIPT_PATH"
-
-# --- 4. Generate README.md ---
+# --- 5. Generate Documentation ---
 # In new project mode, always generate docs
 if [ "$IS_MONOREPO" != true ]; then
     GENERATE_SCAFFOLDING=true
 fi
 
 if [ "$GENERATE_SCAFFOLDING" = true ]; then
-echo "Generating README..."
+    echo "Generating README..."
+    if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+        generate_ea_readme
+    else
+        generate_regular_readme
+    fi
 
-if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
-    # EA README
-    cat > "$README_PATH" << EOF
-# $SCRIPT_NAME
-
-**Type:** Jamf Pro Extension Attribute
-**Version:** 1.0.0
-**Author:** $(git config user.name || echo "First Last")
-**Last Updated:** $(date +%Y-%m-%d)
-
-## Description
-This Extension Attribute reports inventory data to Jamf Pro.
-
-## Purpose
-Extension Attributes extend Jamf Pro's inventory data with custom information. This script:
-- Runs during inventory updates
-- Outputs data in \`<result>VALUE</result>\` format
-- Should be silent except for the result output
-- Typically collects read-only system information
-
-## Static Configuration
-$(if [ ${#STATIC_README_ROWS[@]} -gt 0 ]; then
-    echo "| Variable | Type | Value | Description |"
-    echo "|----------|------|-------|-------------|"
-    printf '%s\n' "${STATIC_README_ROWS[@]}"
-else
-    echo "No static configuration variables defined."
-fi)
-
-## Jamf Pro Setup
-
-### 1. Add Extension Attribute
-1. Log into Jamf Pro
-2. Navigate to **Settings** > **Computer Management** > **Extension Attributes**
-3. Click **+ New**
-4. Configure:
-   - **Display Name:** $SCRIPT_NAME
-   - **Description:** [Add description of what this reports]
-   - **Data Type:** String (or Integer/Date as appropriate)
-   - **Inventory Display:** Choose appropriate category
-   - **Input Type:** Script
-5. Paste the contents of \`$SCRIPT_NAME.sh\`
-6. Click **Save**
-
-### 2. Verify Collection
-1. Run \`sudo jamf recon\` on a test Mac
-2. Check computer inventory in Jamf Pro
-3. Find the new attribute in the configured category
-
-## Local Testing
-
-Test the script locally to verify output format:
-
-\`\`\`bash
-./$SCRIPT_NAME.sh
-
-# Expected output format:
-# <result>VALUE_HERE</result>
-\`\`\`
-
-## Data Type Recommendations
-
-| Data Type | Use When | Example Values |
-|-----------|----------|----------------|
-| **String** | Text values, version numbers, status | "1.2.3", "Installed", "Active" |
-| **Integer** | Numeric counts, IDs, percentages | 42, 0, 100 |
-| **Date** | Timestamps, dates | "2025-12-07", "2025-12-07 14:30:00" |
-
-## Versioning
-This script uses [Semantic Versioning](https://semver.org/). To bump the version:
-
-\`\`\`bash
-./bump-version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description of changes"
-\`\`\`
-EOF
-else
-    # Regular README
-    cat > "$README_PATH" << EOF
-# $SCRIPT_NAME
-
-**Version:** 1.0.0
-**Author:** $(git config user.name || echo "First Last")
-**Last Updated:** $(date +%Y-%m-%d)
-
-## Description
-This script is designed for Jamf Pro deployment.
-
-## Static Configuration
-$(if [ ${#STATIC_README_ROWS[@]} -gt 0 ]; then
-    echo "| Variable | Type | Value | Description |"
-    echo "|----------|------|-------|-------------|"
-    printf '%s\n' "${STATIC_README_ROWS[@]}"
-else
-    echo "No static configuration variables defined."
-fi)
-
-## Jamf Parameters
-| Parameter | Label | Local Default / Env Var |
-|-----------|-------|-------------------------|
-$(if [ ${#README_ROWS[@]} -gt 0 ]; then
-    printf '%s\n' "${README_ROWS[@]}"
-else
-    echo "| None | N/A | N/A |"
-fi)
-
-## Local Testing
-
-### Prerequisites
-$(if [ ${#ONEPASSWORD_SECRETS[@]} -gt 0 ]; then
-    echo "This script uses **1Password** for secret management. Ensure you have:"
-    echo "1. 1Password CLI installed: \`brew install 1password-cli\`"
-    echo "2. Authenticated to 1Password: \`op account list\`"
-    echo "3. Secrets stored in 1Password:"
-    printf '   - %s\n' "${ONEPASSWORD_SECRETS[@]}"
-    echo ""
-fi)
-$(if grep -q "LOCAL_" <<< "${BLOCK_VARIABLES[*]}" 2>/dev/null; then
-    echo "For traditional local secrets, ensure \`~/.jamf_secrets\` exists with required variables."
-    echo ""
-fi)
-
-### Run the script
-\`\`\`bash
-sudo ./$SCRIPT_NAME.sh
-\`\`\`
-
-### Testing 1Password Integration
-$(if [ ${#ONEPASSWORD_SECRETS[@]} -gt 0 ]; then
-    echo "Test secret retrieval:"
-    echo "\`\`\`bash"
-    printf 'op read "%s"\n' "${ONEPASSWORD_SECRETS[0]}"
-    echo "\`\`\`"
-    echo ""
-fi)
-
-## Versioning
-This project uses [Semantic Versioning](https://semver.org/):
-- **MAJOR**: Breaking changes or incompatible API changes
-- **MINOR**: New features, backward-compatible
-- **PATCH**: Bug fixes, backward-compatible
-
-To bump the version, use the provided version bump script:
-\`\`\`bash
-# Auto-detect script (typical usage)
-./bump-version.sh [major|minor|patch] "Description of changes"
-
-# Or specify script explicitly
-./bump-version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description"
-\`\`\`
-EOF
-fi
-fi  # end GENERATE_SCAFFOLDING (README)
-
-# --- 5. Generate Version Bump Utility ---
-# For new project mode, cd into the project dir (needed for git init later)
-if [ "$IS_MONOREPO" != true ]; then
-    cd "$PROJECT_DIR" || exit
-fi
-
-if [ "$GENERATE_SCAFFOLDING" = true ]; then
-echo "Generating bump-version.sh..."
-
-if [ "$IS_MONOREPO" = true ]; then
+    # Set bump-version path
     BUMP_PATH="$PROJECT_DIR/bump-version.sh"
-else
-    BUMP_PATH="./bump-version.sh"
-fi
 
-# Locate the canonical bump-version.sh alongside shikomi
-if [[ -f "$SHIKOMI_DIR/bump-version.sh" ]]; then
-    BUMP_VERSION_SOURCE="$SHIKOMI_DIR/bump-version.sh"
-elif [[ -f "$SHIKOMI_DIR/bump-version" ]]; then
-    BUMP_VERSION_SOURCE="$SHIKOMI_DIR/bump-version"
-else
-    echo "Error: Cannot find bump-version.sh alongside shikomi"
-    echo "Expected at: $SHIKOMI_DIR/bump-version.sh"
-    exit 1
-fi
+    echo "Generating bump-version.sh..."
+    copy_bump_version
 
-# Write a clean usage header for the generated project
-cat > "$BUMP_PATH" << 'HEADER_EOF'
-#!/bin/bash
-
-################################################################################
-# SCRIPT: bump-version.sh
-# DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
-#
-# USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
-#
-# OPTIONS:
-#   --commit    Stage and commit all version changes automatically
-#
-# EXAMPLES:
-#   Auto-detect script:
-#     ./bump-version.sh patch "Fixed bug in parameter validation"
-#     ./bump-version.sh patch "Fixed bug in parameter validation" --commit
-#
-#   Specify script explicitly:
-#     ./bump-version.sh my_script.sh minor "Added new feature"
-#     ./bump-version.sh my_script.sh minor "Added new feature" --commit
-################################################################################
-HEADER_EOF
-
-# Append the portable body from the canonical bump-version.sh
-sed -n '/^# --- BEGIN PORTABLE ---$/,/^# --- END PORTABLE ---$/{
-    /^# --- BEGIN PORTABLE ---$/d
-    /^# --- END PORTABLE ---$/d
-    p
-}' "$BUMP_VERSION_SOURCE" >> "$BUMP_PATH"
-
-
-chmod +x "$BUMP_PATH"
-
-echo "Generating CHANGELOG.md..."
-cat > "$CHANGELOG_PATH" << EOF
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [1.0.0] - $(date +%Y-%m-%d)
-
-### Added
-- Initial release of $SCRIPT_NAME
-$(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
-    echo "- Extension Attribute for Jamf Pro inventory reporting"
-    echo "- Data collection logic"
-    echo "- Proper <result> output formatting"
-else
-    echo "- Core functionality implemented"
-    echo "- Jamf Pro parameter support"
-    [ "$SECRETS_USED" = true ] && echo "- Secure secrets management"
-fi)
-EOF
-fi  # end GENERATE_SCAFFOLDING (CHANGELOG)
+    echo "Generating CHANGELOG.md..."
+    generate_changelog
+fi  # end GENERATE_SCAFFOLDING
 
 # --- 6. Branching Git Logic ---
 
@@ -795,418 +406,56 @@ if [ "$IS_MONOREPO" = true ]; then
     read -rp "Do you want to create a new branch for this script? (Recommended) (y/n): " do_branch
 
     if [[ "$do_branch" =~ ^[Yy] ]]; then
-        # Detect default branch (main or master)
-        DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | sed -n '/HEAD branch/s/.*: //p')
-
-        if [[ -z "$DEFAULT_BRANCH" ]]; then
-            # Fallback if offline or no remote
-            DEFAULT_BRANCH="main"
-        fi
-
-        echo "Switching to $DEFAULT_BRANCH and updating..."
-        git checkout "$DEFAULT_BRANCH" 2>/dev/null || git checkout master 2>/dev/null || true
-        git pull -q 2>/dev/null || true
-
-        # Create new branch
-        BRANCH_NAME="feature/$SCRIPT_NAME"
-        echo "Creating branch: $BRANCH_NAME"
-
-        # Check if branch exists
-        if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-            echo "Warning: Branch $BRANCH_NAME already exists. Switching to it."
-            git checkout "$BRANCH_NAME"
-        else
-            git checkout -b "$BRANCH_NAME"
-        fi
+        create_feature_branch
     fi
 
-    # 3. Add the files
-    echo "Staging files..."
-    if [ "$GENERATE_SCAFFOLDING" = true ]; then
-        git add "$SCRIPT_PATH" "$README_PATH" "$CHANGELOG_PATH" "$BUMP_PATH"
-    else
-        git add "$SCRIPT_PATH"
-    fi
-
-    echo "Files staged on branch: $(git branch --show-current)"
-    echo "   Next Step: git commit -m 'Add $SCRIPT_NAME script'"
+    stage_monorepo_files
 
 else
     # --- NEW REPO FLOW ---
 
-    echo "Initializing Git..."
-    git init -q
+    # For new project mode, cd into the project dir (needed for git init)
+    cd "$PROJECT_DIR" || exit
+
+    init_new_repo
 
     echo "Generating macOS .gitignore..."
-    cat > .gitignore << EOF
-# --- macOS System Files ---
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
+    generate_gitignore
 
-# --- Editors & IDEs ---
-.vscode/
-.idea/
-*.swp
+    # Install Pre-commit if available
+    if install_precommit_hooks; then
+        echo ""
+        echo "Pre-commit hooks protect against secrets and code quality issues."
+        read -rp "Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e): " hook_level
 
-# --- Secrets & Local Configs (Safety Net) ---
-.env
-.env.local
-.jamf_secrets
-secrets.sh
-config.local
-
-# --- Binary Artifacts (Don't commit these!) ---
-*.dmg
-*.zip
-*.tar.gz
-
-# --- munkipkg Build Artifacts ---
-# Allow pkg/ source directory but ignore built packages
-pkg/build/
-**/build/*.pkg
-*.pkg
-*.pkg.zip
-EOF
-
-# Install Pre-commit if available
-if command -v pre-commit &> /dev/null; then
-    echo ""
-    echo "Pre-commit hooks protect against secrets and code quality issues."
-    read -rp "Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e): " hook_level
-
-    if [[ "$hook_level" =~ ^[Ee] ]]; then
-        # Enhanced: 9 hooks (secrets, linting, quality checks)
-        cat > .pre-commit-config.yaml << 'EOF'
-repos:
-  # Secret scanning with gitleaks
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
-    hooks:
-      - id: gitleaks
-
-  # Shell script linting
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
-    hooks:
-      - id: shellcheck
-        args: [--severity=warning]
-
-  # General checks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-        args: ['--maxkb=1000']
-      - id: check-merge-conflict
-      - id: detect-private-key
-EOF
-        echo "Installing enhanced pre-commit hooks (9 checks)..."
-    else
-        # Basic: Just gitleaks for secret scanning
-        cat > .pre-commit-config.yaml << 'EOF'
-repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
-    hooks:
-      - id: gitleaks
-EOF
-        echo "Installing basic pre-commit hooks (secrets only)..."
+        if [[ "$hook_level" =~ ^[Ee] ]]; then
+            generate_precommit_config "enhanced"
+        else
+            generate_precommit_config "basic"
+        fi
     fi
 
-    pre-commit install
-    git add .pre-commit-config.yaml
-    echo "✓ Pre-commit hooks installed"
-else
-    echo "   (Skipping pre-commit setup - 'pre-commit' not installed)"
-    echo "   To enable: brew install pre-commit"
-fi
+    # Optional: Generate GitHub Actions workflows
+    read -rp "Add GitHub Actions workflow for PR validation (ShellCheck + version checks)? (y/n): " add_workflow
+    if [[ "$add_workflow" =~ ^[Yy] ]]; then
+        echo "Generating validation workflow..."
+        generate_validate_workflow "."
 
-# Optional: Generate GitHub Actions workflows
-read -rp "Add GitHub Actions workflow for PR validation (ShellCheck + version checks)? (y/n): " add_workflow
-if [[ "$add_workflow" =~ ^[Yy] ]]; then
-    echo "Generating validation workflow..."
-    mkdir -p .github/workflows
-    cat > .github/workflows/validate-version.yml << 'WORKFLOW_EOF'
-name: Validate Version
-
-on:
-  pull_request:
-    branches: [ main, master ]
-  push:
-    tags:
-      - 'v*'
-
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Extract version from script
-        id: script_version
-        run: |
-          # Find versioned script (same logic as bump-version.sh)
-          SCRIPT_FILE=""
-          shopt -s nullglob
-          for file in *.sh; do
-            if [[ "\$file" != "bump-version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "\$file" 2>/dev/null; then
-              SCRIPT_FILE="\$file"
-              break
-            fi
-          done
-
-          if [[ -z "\$SCRIPT_FILE" ]]; then
-            echo "Error: No versioned script found"
-            exit 1
-          fi
-
-          echo "Found script: \$SCRIPT_FILE"
-          VERSION=\$(grep "^readonly SCRIPT_VERSION=" "\$SCRIPT_FILE" | sed 's/.*"\\(.*\\)".*/\\1/')
-          echo "version=\$VERSION" >> \$GITHUB_OUTPUT
-          echo "Script version: \$VERSION"
-
-      - name: Extract version from README
-        id: readme_version
-        run: |
-          VERSION=$(grep "^\*\*Version:\*\*" README.md | sed 's/.*: \(.*\)$/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "README version: $VERSION"
-
-      - name: Validate versions match
-        run: |
-          if [ "${{ steps.script_version.outputs.version }}" != "${{ steps.readme_version.outputs.version }}" ]; then
-            echo "ERROR: Version mismatch!"
-            echo "Script: ${{ steps.script_version.outputs.version }}"
-            echo "README: ${{ steps.readme_version.outputs.version }}"
-            exit 1
-          fi
-          echo "SUCCESS: Versions match: ${{ steps.script_version.outputs.version }}"
-
-      - name: Validate tag matches version (on tag push)
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          SCRIPT_VERSION="${{ steps.script_version.outputs.version }}"
-          if [ "$TAG_VERSION" != "$SCRIPT_VERSION" ]; then
-            echo "ERROR: Tag version ($TAG_VERSION) does not match script version ($SCRIPT_VERSION)"
-            exit 1
-          fi
-          echo "SUCCESS: Tag matches version: v$SCRIPT_VERSION"
-
-  shellcheck:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@master
-        with:
-          ignore_paths: .github
-WORKFLOW_EOF
-    git add .github/workflows/validate-version.yml
-    echo "✓ validate-version.yml created"
-
-    # Optional: Add Jamf Pro deployment workflow (only offered if validation was accepted)
-    read -rp "Also add a workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy_workflow
-    if [[ "$add_deploy_workflow" =~ ^[Yy] ]]; then
-        echo "Generating Jamf Pro deploy workflow..."
-        mkdir -p .github/workflows
-        cat > .github/workflows/deploy-to-jamf.yml << 'DEPLOY_EOF'
-name: Deploy Script to Jamf Pro
-
-on:
-  push:
-    branches: [ main, master ]
-    paths:
-      - '*.sh'
-      - '!bump-version.sh'
-
-permissions:
-  contents: read
-
-jobs:
-  deploy:
-    name: Deploy to Jamf Pro
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Find versioned script
-        id: find_script
-        run: |
-          SCRIPT_FILE=""
-          for file in *.sh; do
-            if [[ "$file" != "bump-version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "$file" 2>/dev/null; then
-              SCRIPT_FILE="$file"
-              break
-            fi
-          done
-
-          if [[ -z "$SCRIPT_FILE" ]]; then
-            echo "Error: No versioned script found"
-            exit 1
-          fi
-
-          SCRIPT_NAME="${SCRIPT_FILE%.sh}"
-          SCRIPT_VERSION=$(grep "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" | sed 's/.*"\(.*\)".*/\1/')
-
-          echo "script_file=$SCRIPT_FILE" >> $GITHUB_OUTPUT
-          echo "script_name=$SCRIPT_NAME" >> $GITHUB_OUTPUT
-          echo "script_version=$SCRIPT_VERSION" >> $GITHUB_OUTPUT
-          echo "Found: $SCRIPT_FILE (v$SCRIPT_VERSION)"
-
-      - name: Authenticate to Jamf Pro
-        id: auth
-        env:
-          JAMF_CLIENT_ID: ${{ secrets.JAMF_CLIENT_ID }}
-          JAMF_CLIENT_SECRET: ${{ secrets.JAMF_CLIENT_SECRET }}
-          JAMF_URL: ${{ secrets.JAMF_URL }}
-        run: |
-          if [[ -z "$JAMF_CLIENT_ID" || -z "$JAMF_CLIENT_SECRET" || -z "$JAMF_URL" ]]; then
-            echo "Error: Missing required secrets (JAMF_CLIENT_ID, JAMF_CLIENT_SECRET, JAMF_URL)"
-            exit 1
-          fi
-
-          RESPONSE=$(curl -s -X POST "${JAMF_URL}/api/oauth/token" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "client_id=${JAMF_CLIENT_ID}&client_secret=${JAMF_CLIENT_SECRET}&grant_type=client_credentials")
-
-          TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
-
-          if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
-            echo "Error: Failed to authenticate to Jamf Pro"
-            echo "$RESPONSE" | jq .
-            exit 1
-          fi
-
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-          echo "Authenticated to Jamf Pro"
-
-      - name: Read script content
-        id: script_content
-        run: |
-          SCRIPT_CONTENT=$(cat "${{ steps.find_script.outputs.script_file }}")
-          # Write to a temp file for the API call (avoids shell escaping issues)
-          echo "$SCRIPT_CONTENT" > /tmp/script_payload.txt
-          echo "Script content read (${{ steps.find_script.outputs.script_file }})"
-
-      - name: Look up existing script in Jamf Pro
-        id: lookup
-        env:
-          JAMF_URL: ${{ secrets.JAMF_URL }}
-        run: |
-          SCRIPT_NAME="${{ steps.find_script.outputs.script_name }}"
-          TOKEN="${{ steps.auth.outputs.token }}"
-
-          # Search for script by name
-          RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}%22" \
-            -H "Authorization: Bearer ${TOKEN}" \
-            -H "Accept: application/json")
-
-          SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
-
-          if [[ -n "$SCRIPT_ID" ]]; then
-            echo "Found existing script: $SCRIPT_NAME (ID: $SCRIPT_ID)"
-            echo "action=update" >> $GITHUB_OUTPUT
-            echo "script_id=$SCRIPT_ID" >> $GITHUB_OUTPUT
-          else
-            echo "Script not found in Jamf Pro, will create new"
-            echo "action=create" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Deploy script to Jamf Pro
-        env:
-          JAMF_URL: ${{ secrets.JAMF_URL }}
-        run: |
-          TOKEN="${{ steps.auth.outputs.token }}"
-          SCRIPT_NAME="${{ steps.find_script.outputs.script_name }}"
-          SCRIPT_VERSION="${{ steps.find_script.outputs.script_version }}"
-          ACTION="${{ steps.lookup.outputs.action }}"
-          SCRIPT_ID="${{ steps.lookup.outputs.script_id }}"
-
-          # Build JSON payload
-          PAYLOAD=$(jq -n \
-            --arg name "$SCRIPT_NAME" \
-            --arg info "Deployed from GitHub (v${SCRIPT_VERSION})" \
-            --arg contents "$(cat /tmp/script_payload.txt)" \
-            '{
-              name: $name,
-              info: $info,
-              scriptContents: $contents,
-              priority: "AFTER",
-              categoryId: "-1"
-            }')
-
-          if [[ "$ACTION" == "update" ]]; then
-            echo "Updating script $SCRIPT_NAME (ID: $SCRIPT_ID)..."
-            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-              -X PUT "${JAMF_URL}/api/v1/scripts/${SCRIPT_ID}" \
-              -H "Authorization: Bearer ${TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD")
-          else
-            echo "Creating script $SCRIPT_NAME..."
-            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-              -X POST "${JAMF_URL}/api/v1/scripts" \
-              -H "Authorization: Bearer ${TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD")
-          fi
-
-          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
-            echo "Successfully deployed $SCRIPT_NAME v${SCRIPT_VERSION} to Jamf Pro (HTTP $HTTP_CODE)"
-          else
-            echo "Error: Deployment failed (HTTP $HTTP_CODE)"
-            cat /tmp/response.json | jq . 2>/dev/null || cat /tmp/response.json
-            exit 1
-          fi
-
-      - name: Deployment summary
-        if: always()
-        run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Script:** ${{ steps.find_script.outputs.script_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.find_script.outputs.script_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Action:** ${{ steps.lookup.outputs.action }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-DEPLOY_EOF
-        echo "✓ deploy-to-jamf.yml created"
-        echo ""
-        echo "Required GitHub Secrets for deployment:"
-        echo "  JAMF_CLIENT_ID     - API client ID from Jamf Pro"
-        echo "  JAMF_CLIENT_SECRET - API client secret from Jamf Pro"
-        echo "  JAMF_URL           - Jamf Pro URL (e.g. https://yourinstance.jamfcloud.com)"
-        echo ""
-        git add .github/workflows/deploy-to-jamf.yml
+        # Optional: Add Jamf Pro deployment workflow
+        read -rp "Also add a workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy_workflow
+        if [[ "$add_deploy_workflow" =~ ^[Yy] ]]; then
+            echo "Generating Jamf Pro deploy workflow..."
+            generate_deploy_workflow "."
+        fi
     fi
-fi
 
-    git add .
-    git commit -m "Initial commit: Scaffolding for $SCRIPT_NAME"
+    stage_and_commit_new_repo
 
     # GitHub Remote Creation
     if command -v gh &> /dev/null; then
         read -rp "Create private GitHub repo? (y/n): " create_gh
         if [[ "$create_gh" =~ ^[Yy] ]]; then
-            echo "Creating GitHub repository..."
-            gh repo create "$SCRIPT_NAME" --private --source=. --remote=origin --push
-            echo "Live at: $(gh repo view --json url -q .url)"
+            create_github_repo
         fi
     fi
 fi

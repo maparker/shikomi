@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.0] - 2026-03-22
+
+### Changed
+- Extracted monolithic `shikomi.sh` into modular `lib/` structure with 6 sourced library files
+  - `lib/templates.sh` — script template generation (`generate_regular_script()`, `generate_ea_script()`)
+  - `lib/readme.sh` — README generation (`generate_regular_readme()`, `generate_ea_readme()`)
+  - `lib/docs.sh` — CHANGELOG and bump-version copy (`copy_bump_version()`, `generate_changelog()`)
+  - `lib/workflows.sh` — GitHub Actions workflow generation (`generate_validate_workflow()`, `generate_deploy_workflow()`)
+  - `lib/git-setup.sh` — Git init, branching, pre-commit, and GitHub setup
+  - `lib/collection.sh` — parameter, secret, and static variable collection functions
+- `shikomi.sh` is now a thin orchestrator (~570 lines) that sources `lib/*.sh` and handles interactive prompts
+- `SHIKOMI_LIB` resolves from repo directory, `~/.local/lib/shikomi/lib`, or `/usr/local/lib/shikomi/lib`
+- `install.sh` (v1.2.0) now copies `lib/` directory during install, removes on uninstall, refreshes on update
+
 ## [1.8.0] - 2026-03-22
 
 ### Added
