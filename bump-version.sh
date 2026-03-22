@@ -36,6 +36,8 @@ if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
     exit 0
 fi
 
+# --- BEGIN PORTABLE ---
+
 # Check for --commit flag (can appear as last argument)
 AUTO_COMMIT=false
 args=("$@")
@@ -254,3 +256,4 @@ else
     echo "  3. Tag release: git tag -a \"v$NEW_VERSION\" -m \"$CHANGE_DESC\""
     echo "  4. Push changes: git push && git push --tags"
 fi
+# --- END PORTABLE ---

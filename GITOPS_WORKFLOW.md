@@ -189,6 +189,18 @@ Before the first deployment, add these secrets to your repository (Settings > Se
 3. Create a new **API Client** and assign the role you created
 4. Copy the **Client ID** and **Client Secret** to your GitHub repository secrets
 
+### Monorepo Note
+
+The deploy workflow is designed for single-script repositories (micro-repo mode). It finds the first `.sh` file with a `SCRIPT_VERSION` constant and deploys that.
+
+If you are using monorepo mode with multiple scripts, the deploy workflow will need to be adapted. Some options:
+
+- **One workflow per script**: Duplicate the workflow with different path filters so each script has its own deployment trigger.
+- **Config file mapping**: Add a `.jamf-deploy.json` that maps script filenames to Jamf Pro script names, and modify the workflow to read it.
+- **Changed-file detection**: Use a step that compares the merge diff to determine which scripts changed, then deploy only those.
+
+For most teams starting out, the single-script micro-repo approach is the simplest path.
+
 ### Deployment Summary
 
 After each deployment, the workflow posts a summary to the Actions run:

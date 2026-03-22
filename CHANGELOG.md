@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.8.0] - 2026-03-20
+## [1.8.0] - 2026-03-21
 
 ### Added
 - Optional GitHub Actions workflow to deploy scripts to Jamf Pro on merge via the Jamf Pro API
@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `--commit` flag to `bump-version` for automatic staging and committing of version bumps
 - Deploy workflow prompt is only offered after accepting PR validation workflow
 - Bumped `bump-version.sh` to v1.2.0
+
+### Changed
+- Replaced embedded bump-version heredoc with marker-based extraction from the canonical `bump-version.sh` (single source of truth)
+- Added `SHIKOMI_DIR` resolution so shikomi can locate sibling files at runtime
 
 ### Removed
 - Removed bundled project-specific workflows (jamf-auto-patch.yml, validate-script.yml) that did not belong in the framework repo
