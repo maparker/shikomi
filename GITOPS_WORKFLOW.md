@@ -193,6 +193,12 @@ Before the first deployment, add these secrets to your repository (Settings > Se
 
 If you have an existing repository that wasn't scaffolded with the deploy workflow, run `add_security_tools.sh` from your repo root. It will prompt you to add the Jamf Pro deploy workflow alongside the security checks.
 
+### Script Naming in Jamf Pro
+
+The deploy workflow creates scripts in Jamf Pro **without** the `.sh` extension. For example, `install_app.sh` in your repo becomes `install_app` in Jamf Pro.
+
+When updating, the workflow checks for both names (with and without `.sh`) so it will find existing scripts regardless of how they were originally named. However, if you are adding deployment to a repo where the script already exists in Jamf Pro with `.sh` in the name, verify that the first deployment updates the existing script rather than creating a duplicate.
+
 ### Monorepo Note
 
 The deploy workflow is designed for single-script repositories (micro-repo mode). It finds the first `.sh` file with a `SCRIPT_VERSION` constant and deploys that.

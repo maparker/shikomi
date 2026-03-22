@@ -321,11 +321,20 @@ jobs:
           SCRIPT_NAME="${{ steps.find_script.outputs.script_name }}"
           TOKEN="${{ steps.auth.outputs.token }}"
 
+          # Search for script by name (try without .sh first, then with .sh)
           RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}%22" \
             -H "Authorization: Bearer ${TOKEN}" \
             -H "Accept: application/json")
 
           SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+
+          if [[ -z "$SCRIPT_ID" ]]; then
+            # Retry with .sh extension (in case Jamf Pro has the script stored with .sh)
+            RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}.sh%22" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Accept: application/json")
+            SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+          fi
 
           if [[ -n "$SCRIPT_ID" ]]; then
             echo "Found existing script: $SCRIPT_NAME (ID: $SCRIPT_ID)"

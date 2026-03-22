@@ -64,9 +64,11 @@ After merging your first pull request to `main`, check that the deployment succe
 ### In Jamf Pro
 
 1. Go to **Settings > Computer Management > Scripts**
-2. Search for your script name
+2. Search for your script name (the workflow creates scripts without the `.sh` extension, e.g. `install_app`)
 3. Verify the script contents match your repository
 4. Check the **Info** field shows the version (e.g. `Deployed from GitHub (v1.0.0)`)
+
+**Note:** When updating, the workflow checks for both `install_app` and `install_app.sh` so it will find existing scripts regardless of naming convention.
 
 ---
 
