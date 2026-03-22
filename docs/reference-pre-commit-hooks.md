@@ -172,7 +172,7 @@ pre-commit clean
 pre-commit install
 ```
 
-Or run `add_security_tools.sh` in your repo and choose enhanced when prompted.
+Or run `add_security_tools.sh` in your repo and choose enhanced when prompted. It can also add the Jamf Pro deploy workflow to existing repos.
 
 ---
 

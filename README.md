@@ -205,11 +205,12 @@ bump-version my_script.sh minor "Added new feature"
 # Output: Updating munkipkg version in: pkg/build-info.json
 ```
 
-### 3. `add_security_tools.sh` (v1.1.0)
-Security tooling setup for repositories:
+### 3. `add_security_tools.sh` (v1.2.0)
+Security tooling setup for existing repositories:
 - Installs Gitleaks for secret scanning
-- Configures pre-commit hooks
-- Sets up GitHub Actions workflows
+- Configures pre-commit hooks (basic or enhanced)
+- Sets up GitHub Actions workflows (security checks)
+- Optional Jamf Pro deploy workflow
 - Adds security-focused `.gitignore` rules
 
 **Version info:**
@@ -647,7 +648,7 @@ repos:
 Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e):
 ```
 
-For **existing projects**, use `add_security_tools.sh` to add enhanced hooks
+For **existing projects**, use `add_security_tools.sh` to add hooks and optional Jamf Pro deployment
 
 ---
 

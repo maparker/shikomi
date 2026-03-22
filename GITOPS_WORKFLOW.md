@@ -189,6 +189,10 @@ Before the first deployment, add these secrets to your repository (Settings > Se
 3. Create a new **API Client** and assign the role you created
 4. Copy the **Client ID** and **Client Secret** to your GitHub repository secrets
 
+### Adding Deployment to an Existing Repo
+
+If you have an existing repository that wasn't scaffolded with the deploy workflow, run `add_security_tools.sh` from your repo root. It will prompt you to add the Jamf Pro deploy workflow alongside the security checks.
+
 ### Monorepo Note
 
 The deploy workflow is designed for single-script repositories (micro-repo mode). It finds the first `.sh` file with a `SCRIPT_VERSION` constant and deploys that.
