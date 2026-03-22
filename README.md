@@ -293,7 +293,7 @@ Simply enter the numbers during script generation to include these variables.
 Every generated script includes:
 
 ```bash
-#!/bin/zsh
+#!/bin/bash
 
 ################################################################################
 # SCRIPT:      script_name.sh
@@ -309,6 +309,8 @@ readonly SCRIPT_VERSION="1.0.0"
 readonly SCRIPT_NAME="script_name"
 
 # --- Local Development Secrets ---
+# This block is for local testing only. On managed endpoints (via Jamf Pro),
+# this file will not exist and secrets are delivered through parameters ($4-$11).
 if [[ -f "$HOME/.jamf_secrets" ]]; then
     source "$HOME/.jamf_secrets"
 fi
@@ -316,15 +318,15 @@ fi
 # --- Static Configuration ---
 SERIAL_NUMBER="$(system_profiler SPHardwareDataType | awk '/Serial/ {print $4}')"
 
-# --- Configuration (MDM Parameters) ---
+# --- Configuration (Jamf Parameters) ---
 APP_NAME="${4:-"Slack"}"
 
 # --- Logging Setup ---
 LOG_FILE="/var/log/script_name.log"
-function log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
-function log_warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $*" >&2; }
-function log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
-function log_success() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $*"; }
+function log() { local msg="[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; echo "$msg" >&2; echo "$msg" >> "$LOG_FILE" 2>/dev/null; }
+function log_warn() { local msg="[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $*"; echo "$msg" >&2; echo "$msg" >> "$LOG_FILE" 2>/dev/null; }
+function log_error() { local msg="[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*"; echo "$msg" >&2; echo "$msg" >> "$LOG_FILE" 2>/dev/null; }
+function log_success() { local msg="[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $*"; echo "$msg" >&2; echo "$msg" >> "$LOG_FILE" 2>/dev/null; }
 
 # --- Main Logic ---
 log "Starting $SCRIPT_NAME v$SCRIPT_VERSION..."
@@ -347,10 +349,10 @@ Every generated script includes enhanced logging functions with severity levels:
 
 | Function | Severity | Output | Use Case |
 |----------|----------|--------|----------|
-| `log()` | INFO | stdout | General information and progress updates |
-| `log_warn()` | WARN | stderr | Non-critical warnings that don't stop execution |
-| `log_error()` | ERROR | stderr | Critical errors requiring attention |
-| `log_success()` | SUCCESS | stdout | Successful completion of operations |
+| `log()` | INFO | stderr + log file | General information and progress updates |
+| `log_warn()` | WARN | stderr + log file | Non-critical warnings that don't stop execution |
+| `log_error()` | ERROR | stderr + log file | Critical errors requiring attention |
+| `log_success()` | SUCCESS | stderr + log file | Successful completion of operations |
 
 ### Usage Examples
 
@@ -401,16 +403,16 @@ grep "SUCCESS:" /var/log/my_script.log
 grep -c "ERROR:" /var/log/my_script.log
 ```
 
-### Redirecting stderr
+### Log File
 
-Capture errors and warnings separately:
+All log functions automatically write to both stderr and `/var/log/{script_name}.log`. The log file write is silent if the path is not writable (e.g. running without sudo during local testing).
 
 ```bash
-# Run script and separate stdout/stderr
-./my_script.sh > output.log 2> errors.log
+# View the log file
+cat /var/log/my_script.log
 
-# Or combine with timestamps
-./my_script.sh 2>&1 | tee /var/log/my_script.log
+# Follow in real time
+tail -f /var/log/my_script.log
 ```
 
 ---

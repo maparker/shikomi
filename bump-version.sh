@@ -201,21 +201,33 @@ fi
 
 # Update CHANGELOG (insert new version section before first existing version entry)
 if [[ -n "$CHANGELOG_FILE" ]]; then
-    # Build the new entry block
-    NEW_ENTRY="## [$NEW_VERSION] - $TODAY\n"
+    # Build the new entry as a temp file (avoids sed/awk newline portability issues)
+    ENTRY_FILE=$(mktemp)
+    echo "## [$NEW_VERSION] - $TODAY" > "$ENTRY_FILE"
+    echo "" >> "$ENTRY_FILE"
     case "$BUMP_TYPE" in
-        major) NEW_ENTRY+="\n### Changed\n- $CHANGE_DESC\n" ;;
-        minor) NEW_ENTRY+="\n### Added\n- $CHANGE_DESC\n" ;;
-        patch) NEW_ENTRY+="\n### Fixed\n- $CHANGE_DESC\n" ;;
+        major) echo "### Changed" >> "$ENTRY_FILE" ;;
+        minor) echo "### Added" >> "$ENTRY_FILE" ;;
+        patch) echo "### Fixed" >> "$ENTRY_FILE" ;;
     esac
+    echo "- $CHANGE_DESC" >> "$ENTRY_FILE"
+    echo "" >> "$ENTRY_FILE"
 
     # Insert before the first '## [' version heading
     if grep -q "^## \[" "$CHANGELOG_FILE"; then
-        sed -i.bak "0,/^## \[/{s/^## \[/${NEW_ENTRY}\n## [/}" "$CHANGELOG_FILE"
+        # Find the line number of the first version heading
+        FIRST_VERSION_LINE=$(grep -n "^## \[" "$CHANGELOG_FILE" | head -1 | cut -d: -f1)
+        # Split the file and reassemble with the new entry in between
+        head -n $((FIRST_VERSION_LINE - 1)) "$CHANGELOG_FILE" > "${CHANGELOG_FILE}.tmp"
+        cat "$ENTRY_FILE" >> "${CHANGELOG_FILE}.tmp"
+        tail -n +"$FIRST_VERSION_LINE" "$CHANGELOG_FILE" >> "${CHANGELOG_FILE}.tmp"
+        mv "${CHANGELOG_FILE}.tmp" "$CHANGELOG_FILE"
     else
         # No existing version entries — append to end
-        printf '\n%b\n' "$NEW_ENTRY" >> "$CHANGELOG_FILE"
+        echo "" >> "$CHANGELOG_FILE"
+        cat "$ENTRY_FILE" >> "$CHANGELOG_FILE"
     fi
+    rm -f "$ENTRY_FILE"
 else
     echo "Note: No CHANGELOG found, skipping CHANGELOG version update"
 fi

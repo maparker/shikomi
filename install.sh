@@ -335,6 +335,17 @@ function update_tools() {
     # Verify source files
     verify_source_files
 
+    # Check if this is an upgrade from pre-1.9.0 (no lib/ at install location)
+    local lib_dir
+    if [[ "$install_dir" == "$SYSTEM_BIN_DIR" ]]; then
+        lib_dir="$SYSTEM_LIB_DIR"
+    else
+        lib_dir="$USER_LIB_DIR"
+    fi
+    if [[ ! -d "$lib_dir" ]]; then
+        log_info "Upgrading from pre-1.9.0: installing lib/ directory for the first time"
+    fi
+
     # Reinstall based on found location
     log_info "Reinstalling to $install_dir..."
     echo ""

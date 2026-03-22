@@ -17,57 +17,55 @@
 #   STATIC_VARS[], STATIC_README_ROWS[], SECRETS_USED,
 #   SECRET_REMINDERS[], ONEPASSWORD_SECRETS[],
 #   STANDARD_VARS_NAMES[], STANDARD_VARS_COMMANDS[],
-#   STANDARD_VARS_DESCRIPTIONS[]
+#   STANDARD_VARS_DESCRIPTIONS[]  (indexed arrays, bash 3.2+ compatible)
 ################################################################################
 
 function get_standard_vars_library() {
-    # Populates associative arrays with standard macOS variable definitions
-    # Caller must have declared these as: declare -A STANDARD_VARS_NAMES, etc.
+    # Populates indexed arrays with standard macOS variable definitions
+    # Uses numeric indices (1-12) matching the menu selection numbers
+    # Compatible with bash 3.2+ (no associative arrays required)
 
-    STANDARD_VARS_NAMES=(
-        [1]="SERIAL_NUMBER"
-        [2]="LOGGED_IN_USER"
-        [3]="COMPUTER_NAME"
-        [4]="OS_VERSION"
-        [5]="MODEL_IDENTIFIER"
-        [6]="PRIMARY_IP"
-        [7]="HOSTNAME"
-        [8]="MAC_ADDRESS"
-        [9]="CURRENT_USER_HOME"
-        [10]="BOOT_VOLUME"
-        [11]="TOTAL_RAM_GB"
-        [12]="PROCESSOR_NAME"
-    )
+    STANDARD_VARS_NAMES=()
+    STANDARD_VARS_NAMES[1]="SERIAL_NUMBER"
+    STANDARD_VARS_NAMES[2]="LOGGED_IN_USER"
+    STANDARD_VARS_NAMES[3]="COMPUTER_NAME"
+    STANDARD_VARS_NAMES[4]="OS_VERSION"
+    STANDARD_VARS_NAMES[5]="MODEL_IDENTIFIER"
+    STANDARD_VARS_NAMES[6]="PRIMARY_IP"
+    STANDARD_VARS_NAMES[7]="HOSTNAME"
+    STANDARD_VARS_NAMES[8]="MAC_ADDRESS"
+    STANDARD_VARS_NAMES[9]="CURRENT_USER_HOME"
+    STANDARD_VARS_NAMES[10]="BOOT_VOLUME"
+    STANDARD_VARS_NAMES[11]="TOTAL_RAM_GB"
+    STANDARD_VARS_NAMES[12]="PROCESSOR_NAME"
 
-    STANDARD_VARS_COMMANDS=(
-        [1]='$(system_profiler SPHardwareDataType | awk '\''/Serial/ {print $4}'\'')'
-        [2]='$(stat -f%Su /dev/console)'
-        [3]='$(scutil --get ComputerName)'
-        [4]='$(sw_vers -productVersion)'
-        [5]='$(sysctl -n hw.model)'
-        [6]='$(ipconfig getifaddr en0 || ipconfig getifaddr en1)'
-        [7]='$(hostname)'
-        [8]='$(ifconfig en0 | awk '\''/ether/ {print $2}'\'')'
-        [9]='$(eval echo ~$(stat -f%Su /dev/console))'
-        [10]='$(diskutil info / | awk '\''/Volume Name/ {print $3}'\'')'
-        [11]='$(echo "scale=2; $(sysctl -n hw.memsize) / 1073741824" | bc)'
-        [12]='$(sysctl -n machdep.cpu.brand_string)'
-    )
+    STANDARD_VARS_COMMANDS=()
+    STANDARD_VARS_COMMANDS[1]='$(system_profiler SPHardwareDataType | awk '\''/Serial/ {print $4}'\'')'
+    STANDARD_VARS_COMMANDS[2]='$(stat -f%Su /dev/console)'
+    STANDARD_VARS_COMMANDS[3]='$(scutil --get ComputerName)'
+    STANDARD_VARS_COMMANDS[4]='$(sw_vers -productVersion)'
+    STANDARD_VARS_COMMANDS[5]='$(sysctl -n hw.model)'
+    STANDARD_VARS_COMMANDS[6]='$(ipconfig getifaddr en0 || ipconfig getifaddr en1)'
+    STANDARD_VARS_COMMANDS[7]='$(hostname)'
+    STANDARD_VARS_COMMANDS[8]='$(ifconfig en0 | awk '\''/ether/ {print $2}'\'')'
+    STANDARD_VARS_COMMANDS[9]='$(eval echo ~$(stat -f%Su /dev/console))'
+    STANDARD_VARS_COMMANDS[10]='$(diskutil info / | awk '\''/Volume Name/ {print $3}'\'')'
+    STANDARD_VARS_COMMANDS[11]='$(echo "scale=2; $(sysctl -n hw.memsize) / 1073741824" | bc)'
+    STANDARD_VARS_COMMANDS[12]='$(sysctl -n machdep.cpu.brand_string)'
 
-    STANDARD_VARS_DESCRIPTIONS=(
-        [1]="Mac serial number"
-        [2]="Currently logged in user"
-        [3]="Computer name from System Preferences"
-        [4]="macOS version number"
-        [5]="Hardware model identifier"
-        [6]="Primary network IP address"
-        [7]="Network hostname"
-        [8]="Primary MAC address"
-        [9]="Home directory of logged in user"
-        [10]="Name of boot volume"
-        [11]="Total RAM in gigabytes"
-        [12]="CPU processor name"
-    )
+    STANDARD_VARS_DESCRIPTIONS=()
+    STANDARD_VARS_DESCRIPTIONS[1]="Mac serial number"
+    STANDARD_VARS_DESCRIPTIONS[2]="Currently logged in user"
+    STANDARD_VARS_DESCRIPTIONS[3]="Computer name from System Preferences"
+    STANDARD_VARS_DESCRIPTIONS[4]="macOS version number"
+    STANDARD_VARS_DESCRIPTIONS[5]="Hardware model identifier"
+    STANDARD_VARS_DESCRIPTIONS[6]="Primary network IP address"
+    STANDARD_VARS_DESCRIPTIONS[7]="Network hostname"
+    STANDARD_VARS_DESCRIPTIONS[8]="Primary MAC address"
+    STANDARD_VARS_DESCRIPTIONS[9]="Home directory of logged in user"
+    STANDARD_VARS_DESCRIPTIONS[10]="Name of boot volume"
+    STANDARD_VARS_DESCRIPTIONS[11]="Total RAM in gigabytes"
+    STANDARD_VARS_DESCRIPTIONS[12]="CPU processor name"
 }
 
 # Args: $1 = var number (1-12)

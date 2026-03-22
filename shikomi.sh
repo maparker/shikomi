@@ -47,6 +47,7 @@ elif [[ -d "/usr/local/lib/shikomi/lib" ]]; then
     SHIKOMI_LIB="/usr/local/lib/shikomi/lib"
 else
     echo "Error: Cannot find shikomi lib/ directory"
+    echo "If you recently updated, run: ./install.sh --update (from the shikomi repo)"
     exit 1
 fi
 
@@ -313,9 +314,6 @@ declare -a STATIC_VARS
 declare -a STATIC_README_ROWS
 
 if [[ "$add_static" =~ ^[Yy] ]]; then
-    declare -A STANDARD_VARS_NAMES
-    declare -A STANDARD_VARS_COMMANDS
-    declare -A STANDARD_VARS_DESCRIPTIONS
     get_standard_vars_library
 
     echo ""
