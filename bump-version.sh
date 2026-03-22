@@ -171,12 +171,36 @@ sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION
 CHANGELOG_LINE="# $NEW_VERSION - $TODAY - $CHANGE_DESC"
 sed -i.bak "0,/^# CHANGELOG$/s//# CHANGELOG\n$CHANGELOG_LINE/" "$SCRIPT_FILE"
 
-# Update README.md version
-sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" README.md
-sed -i.bak "s/^\*\*Last Updated:\*\* .*$/\*\*Last Updated:\*\* $TODAY/" README.md
+# Resolve README and CHANGELOG paths
+# Micro-repo: README.md / CHANGELOG.md
+# Monorepo with scaffolding: {script_name}_README.md / {script_name}_CHANGELOG.md
+SCRIPT_BASENAME="${SCRIPT_FILE%.sh}"
+if [[ -f "README.md" ]]; then
+    README_FILE="README.md"
+elif [[ -f "${SCRIPT_BASENAME}_README.md" ]]; then
+    README_FILE="${SCRIPT_BASENAME}_README.md"
+else
+    README_FILE=""
+fi
 
-# Update CHANGELOG.md (insert new version section before first existing version entry)
 if [[ -f "CHANGELOG.md" ]]; then
+    CHANGELOG_FILE="CHANGELOG.md"
+elif [[ -f "${SCRIPT_BASENAME}_CHANGELOG.md" ]]; then
+    CHANGELOG_FILE="${SCRIPT_BASENAME}_CHANGELOG.md"
+else
+    CHANGELOG_FILE=""
+fi
+
+# Update README version (if it exists)
+if [[ -n "$README_FILE" ]]; then
+    sed -i.bak "s/^\*\*Version:\*\* .*$/\*\*Version:\*\* $NEW_VERSION/" "$README_FILE"
+    sed -i.bak "s/^\*\*Last Updated:\*\* .*$/\*\*Last Updated:\*\* $TODAY/" "$README_FILE"
+else
+    echo "Note: No README found, skipping README version update"
+fi
+
+# Update CHANGELOG (insert new version section before first existing version entry)
+if [[ -n "$CHANGELOG_FILE" ]]; then
     # Build the new entry block
     NEW_ENTRY="## [$NEW_VERSION] - $TODAY\n"
     case "$BUMP_TYPE" in
@@ -186,12 +210,14 @@ if [[ -f "CHANGELOG.md" ]]; then
     esac
 
     # Insert before the first '## [' version heading
-    if grep -q "^## \[" CHANGELOG.md; then
-        sed -i.bak "0,/^## \[/{s/^## \[/${NEW_ENTRY}\n## [/}" CHANGELOG.md
+    if grep -q "^## \[" "$CHANGELOG_FILE"; then
+        sed -i.bak "0,/^## \[/{s/^## \[/${NEW_ENTRY}\n## [/}" "$CHANGELOG_FILE"
     else
         # No existing version entries — append to end
-        printf '\n%b\n' "$NEW_ENTRY" >> CHANGELOG.md
+        printf '\n%b\n' "$NEW_ENTRY" >> "$CHANGELOG_FILE"
     fi
+else
+    echo "Note: No CHANGELOG found, skipping CHANGELOG version update"
 fi
 
 # Update munkipkg build-info if present (supports both JSON and plist formats)
@@ -211,36 +237,24 @@ for build_info_path in build-info.json pkg/build-info.json build/build-info.json
 done
 
 # Clean up backup files
-rm -f "$SCRIPT_FILE.bak" README.md.bak CHANGELOG.md.bak 2>/dev/null || true
+rm -f "$SCRIPT_FILE.bak" 2>/dev/null || true
+[[ -n "$README_FILE" ]] && rm -f "${README_FILE}.bak" 2>/dev/null || true
+[[ -n "$CHANGELOG_FILE" ]] && rm -f "${CHANGELOG_FILE}.bak" 2>/dev/null || true
 
 echo ""
 echo "SUCCESS: Version bumped to $NEW_VERSION"
 echo ""
 
 if [[ "$AUTO_COMMIT" == true ]]; then
-    # Check for unrelated uncommitted changes
-    BUMP_FILES=("$SCRIPT_FILE" "README.md")
-    [[ -f "CHANGELOG.md" ]] && BUMP_FILES+=("CHANGELOG.md")
+    # Build list of files that bump-version touched
+    BUMP_FILES=("$SCRIPT_FILE")
+    [[ -n "$README_FILE" ]] && BUMP_FILES+=("$README_FILE")
+    [[ -n "$CHANGELOG_FILE" ]] && BUMP_FILES+=("$CHANGELOG_FILE")
     for build_info_path in build-info.json pkg/build-info.json build/build-info.json build-info.plist pkg/build-info.plist build/build-info.plist; do
         [[ -f "$build_info_path" ]] && BUMP_FILES+=("$build_info_path")
     done
 
-    # Check if there are changes beyond what bump-version touched
-    for changed_file in $(git diff --name-only); do
-        is_bump_file=false
-        for bf in "${BUMP_FILES[@]}"; do
-            if [[ "$changed_file" == "$bf" ]]; then
-                is_bump_file=true
-                break
-            fi
-        done
-        if [[ "$is_bump_file" == false ]]; then
-            echo "Error: Found uncommitted changes in $changed_file that are not from bump-version"
-            echo "Please commit or stash unrelated changes first, then re-run with --commit"
-            exit 1
-        fi
-    done
-
+    # Stage only the files bump-version touched (ignore other uncommitted changes)
     echo "Staging and committing version bump..."
     git add "${BUMP_FILES[@]}"
     git commit -m "chore: bump version to $NEW_VERSION — $CHANGE_DESC"

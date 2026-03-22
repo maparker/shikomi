@@ -182,6 +182,14 @@ bump-version my_script.sh major "Breaking: Changed API interface"
 bump-version my_script.sh patch "Fixed bug" --commit
 ```
 
+**Monorepo Support:**
+`bump-version` automatically resolves the correct README and CHANGELOG for each script:
+- Micro-repo: looks for `README.md` and `CHANGELOG.md`
+- Monorepo: looks for `{script_name}_README.md` and `{script_name}_CHANGELOG.md`
+- If neither exists (monorepo without scaffolding), only the script itself is updated
+
+The `--commit` flag stages only the files that were touched, so you can bump multiple scripts independently without conflicts.
+
 **munkipkg Integration:**
 `bump-version` automatically detects and updates munkipkg package versions:
 - Searches for `build-info.json` or `build-info.plist` in root, `pkg/`, and `build/` directories

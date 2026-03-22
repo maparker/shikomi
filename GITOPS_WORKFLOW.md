@@ -233,9 +233,23 @@ bump-version patch "Fixed permission check" --commit
 - Script header (`# VERSION:`)
 - Script constant (`readonly SCRIPT_VERSION=`)
 - Script changelog (inline `# CHANGELOG`)
-- `README.md` (version and last updated date)
-- `CHANGELOG.md` (new version entry)
+- `README.md` or `{script_name}_README.md` (version and last updated date, if it exists)
+- `CHANGELOG.md` or `{script_name}_CHANGELOG.md` (new version entry, if it exists)
 - `build-info.json` or `build-info.plist` (if using munkipkg)
+
+Files that don't exist are skipped gracefully. In a monorepo without per-script scaffolding, only the script itself is updated.
+
+### Monorepo Usage
+
+In a monorepo with multiple scripts, pass the script name explicitly:
+
+```bash
+# Bump each script individually
+bump-version install_app.sh patch "Fixed permission check" --commit
+bump-version remove_app.sh minor "Added logging" --commit
+```
+
+Each `--commit` creates a separate, atomic commit for that script's version bump. Other uncommitted changes in the repo are left untouched.
 
 Then push, open a PR, and the cycle repeats.
 

@@ -12,7 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
-# 1.8.0 - 2026-03-21 - Added Jamf Pro deploy workflow, --commit flag, portable bump-version extraction, removed bundled workflows
+# 1.8.0 - 2026-03-22 - Added Jamf Pro deploy workflow, --commit flag, portable bump-version, monorepo path resolution, removed bundled workflows
 # 1.7.1 - 2026-03-10 - Multiple fixes: LOG_FILE usage, input validation, CHANGELOG insertion, variable expansion, email fallback
 # 1.7.0 - 2026-01-25 - Added EA template support, multi-template generation, stderr logging fix
 # 1.6.0 - 2026-01-25 - Added 1Password integration for secret storage with interactive configuration during script generation

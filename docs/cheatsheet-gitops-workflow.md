@@ -63,6 +63,9 @@ bump-version patch "Fixed permission check"
 
 # Or bump and commit in one step
 bump-version patch "Fixed permission check" --commit
+
+# Monorepo: specify the script explicitly
+bump-version install_app.sh patch "Fixed permission check" --commit
 ```
 
 ### Merge and Deploy

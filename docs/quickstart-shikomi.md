@@ -140,6 +140,7 @@ gh pr create --title "Add my_first_script" --body "Initial implementation"
 | `bump-version minor "Feature"` | Bump minor version |
 | `bump-version major "Breaking"` | Bump major version |
 | `bump-version patch "Fix" --commit` | Bump and commit in one step |
+| `bump-version my_script.sh patch "Fix"` | Bump a specific script (monorepo) |
 | `bump-version --version` | Show bump-version version |
 
 ---
