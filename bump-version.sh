@@ -2,19 +2,25 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.1.0
+# VERSION:     1.2.0
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
-# USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description"
+# USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
+#
+# OPTIONS:
+#   --commit    Stage and commit all version changes automatically
 #
 # EXAMPLES:
 #   Auto-detect script:
 #     ./bump-version.sh patch "Fixed bug in parameter validation"
+#     ./bump-version.sh patch "Fixed bug in parameter validation" --commit
 #
 #   Specify script explicitly:
 #     ./bump-version.sh my_script.sh minor "Added new feature"
+#     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.2.0 - 2026-03-20 - Added --commit flag for automatic staging and committing of version bumps
 # 1.1.0 - 2026-01-18 - Added munkipkg build-info support for automatic package version updates
 # 1.0.1 - 2026-01-09 - Fixed file permissions to 755 for proper execution
 # 1.0.0 - 2025-12-20 - Initial release
@@ -22,13 +28,26 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_VERSION="1.2.0"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
     echo "bump-version v$SCRIPT_VERSION"
     exit 0
 fi
+
+# Check for --commit flag (can appear as last argument)
+AUTO_COMMIT=false
+args=("$@")
+clean_args=()
+for arg in "${args[@]}"; do
+    if [[ "$arg" == "--commit" ]]; then
+        AUTO_COMMIT=true
+    else
+        clean_args+=("$arg")
+    fi
+done
+set -- "${clean_args[@]}"
 
 # Parse arguments - support both modes:
 # Mode 1: ./bump-version.sh <bump_type> "description"  (auto-detect script)
@@ -195,8 +214,43 @@ rm -f "$SCRIPT_FILE.bak" README.md.bak CHANGELOG.md.bak 2>/dev/null || true
 echo ""
 echo "SUCCESS: Version bumped to $NEW_VERSION"
 echo ""
-echo "Next steps:"
-echo "  1. Review changes: git diff"
-echo "  2. Commit changes: git add . && git commit -m \"chore: bump version to $NEW_VERSION\""
-echo "  3. Tag release: git tag -a \"v$NEW_VERSION\" -m \"$CHANGE_DESC\""
-echo "  4. Push changes: git push && git push --tags"
+
+if [[ "$AUTO_COMMIT" == true ]]; then
+    # Check for unrelated uncommitted changes
+    BUMP_FILES=("$SCRIPT_FILE" "README.md")
+    [[ -f "CHANGELOG.md" ]] && BUMP_FILES+=("CHANGELOG.md")
+    for build_info_path in build-info.json pkg/build-info.json build/build-info.json build-info.plist pkg/build-info.plist build/build-info.plist; do
+        [[ -f "$build_info_path" ]] && BUMP_FILES+=("$build_info_path")
+    done
+
+    # Check if there are changes beyond what bump-version touched
+    for changed_file in $(git diff --name-only); do
+        is_bump_file=false
+        for bf in "${BUMP_FILES[@]}"; do
+            if [[ "$changed_file" == "$bf" ]]; then
+                is_bump_file=true
+                break
+            fi
+        done
+        if [[ "$is_bump_file" == false ]]; then
+            echo "Error: Found uncommitted changes in $changed_file that are not from bump-version"
+            echo "Please commit or stash unrelated changes first, then re-run with --commit"
+            exit 1
+        fi
+    done
+
+    echo "Staging and committing version bump..."
+    git add "${BUMP_FILES[@]}"
+    git commit -m "chore: bump version to $NEW_VERSION — $CHANGE_DESC"
+
+    echo ""
+    echo "Next steps:"
+    echo "  1. Tag release: git tag -a \"v$NEW_VERSION\" -m \"$CHANGE_DESC\""
+    echo "  2. Push changes: git push && git push --tags"
+else
+    echo "Next steps:"
+    echo "  1. Review changes: git diff"
+    echo "  2. Commit changes: git add . && git commit -m \"chore: bump version to $NEW_VERSION\""
+    echo "  3. Tag release: git tag -a \"v$NEW_VERSION\" -m \"$CHANGE_DESC\""
+    echo "  4. Push changes: git push && git push --tags"
+fi
