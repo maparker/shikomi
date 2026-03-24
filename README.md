@@ -8,8 +8,9 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 
 ## Features
 
-[*] **Interactive Script Generation**
-- Guided wizard for parameter collection
+[*] **Interactive & Non-interactive Script Generation**
+- Guided wizard for parameter collection (interactive mode)
+- Full CLI flag support for automation (`--auto`, `--template`, `--params-file`, etc.)
 - Support for MDM parameters ($4-$11 for Jamf Pro)
 - Multiple secret storage methods (1Password, file-based, or manual)
 - Built-in secrets management with 1Password CLI integration
@@ -35,6 +36,12 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 - GitHub integration via `gh` CLI
 - Optional GitHub Actions for version validation
 - Optional GitHub Actions workflow to deploy scripts to Jamf Pro via API on merge
+
+[>] **Claude Code Integration**
+- Optional `CLAUDE.md` generation with project-specific conventions
+- Initialized `SESSION_DIARY.md` for session tracking
+- Template-aware: includes EA guidelines, secret method, versioning rules
+- In monorepo mode, generates at repo root only if files don't exist
 
 ---
 
@@ -102,10 +109,10 @@ chmod +x shikomi.sh bump-version.sh add_security_tools.sh
 ./bump-version.sh my_script.sh patch "Fixed bug"
 ```
 
-### Basic Usage
+### Basic Usage (Interactive)
 
 ```bash
-# Create a new script
+# Create a new script with the interactive wizard
 shikomi my_awesome_script
 
 # Follow the interactive prompts:
@@ -115,7 +122,60 @@ shikomi my_awesome_script
 # 4. Choose pre-commit hook level (basic or enhanced)
 ```
 
-### Example Session
+### Non-interactive Mode (CLI Flags)
+
+Use `--auto` to skip all prompts with sensible defaults, or set individual flags:
+
+```bash
+# Fully automated with defaults (regular script, no params, basic hooks)
+shikomi my_script --auto
+
+# Automated with Claude Code configuration
+shikomi my_script --auto --claude y
+
+# EA script with specific static variables
+shikomi check_disk --auto --template ea --static-vars "1,4,11"
+
+# Regular script with parameters from JSON file
+shikomi deploy_agent --auto --params-file params.json --workflow y --claude y
+
+# Mix: set template via flag, prompt for everything else
+shikomi my_script --template ea
+```
+
+**Available flags:**
+
+| Flag | Values | `--auto` default |
+|------|--------|-----------------|
+| `--auto` | — | Skip all unset prompts |
+| `--template` | `regular` / `ea` | `regular` |
+| `--ea-suffix` | `y` / `n` | `y` |
+| `--scaffolding` | `y` / `n` | `n` (monorepo only) |
+| `--params-file` | path to JSON | — |
+| `--no-params` | — | implied by `--auto` |
+| `--static-vars` | `1,2,4` / `none` | `none` |
+| `--branch` | `y` / `n` | `y` |
+| `--hooks` | `basic` / `enhanced` / `none` | `basic` |
+| `--workflow` | `y` / `n` | `n` |
+| `--deploy-workflow` | `y` / `n` | `n` |
+| `--github` | `y` / `n` | `n` |
+| `--claude` | `y` / `n` | `n` |
+
+**Parameters JSON file schema (`--params-file`):**
+
+```json
+{
+  "parameters": [
+    { "index": 4, "label": "API Key", "secret": true, "storage": "1password",
+      "op_vault": "Private", "op_item": "jamf-my-script", "op_field": "api_key" },
+    { "index": 5, "label": "Target Dept", "secret": false, "default": "Engineering" }
+  ]
+}
+```
+
+Parsed with `plutil` (stock macOS) — no python3 or jq dependency.
+
+### Example Session (Interactive)
 
 ```bash
 $ shikomi install_app
@@ -159,17 +219,18 @@ Installing enhanced pre-commit hooks (9 checks)...
 
 ## Core Components
 
-### 1. `shikomi` (v1.9.0)
-Main script generator with intelligent wizards for:
+### 1. `shikomi` (v2.0.0)
+Main script generator with interactive wizard and non-interactive CLI mode:
 - MDM parameter collection
 - Static configuration variables
 - Standard macOS variable selection
 - Secrets management setup (1Password or file-based)
+- Claude Code scaffolding (CLAUDE.md + SESSION_DIARY.md)
 
 **Version info:**
 ```bash
 shikomi --version  # Show version
-shikomi --help     # Show usage
+shikomi --help     # Show full usage with all flags
 ```
 
 ### 2. `bump-version` (v1.2.0)
@@ -650,6 +711,38 @@ Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e):
 
 For **existing projects**, use `add_security_tools.sh` to add hooks and optional Jamf Pro deployment
 
+### Claude Code Integration
+
+Shikomi can generate Claude Code configuration files to make your project immediately AI-assistant ready:
+
+```bash
+# During interactive wizard, you'll be prompted:
+# "Set up Claude Code configuration? (CLAUDE.md + SESSION_DIARY.md) (y/n)"
+
+# Or via CLI flag:
+shikomi my_script --auto --claude y
+```
+
+**Generated `CLAUDE.md` includes:**
+- Project type and shell conventions (bash 3.2+, shellcheck)
+- Versioning rules (always use bump-version.sh)
+- Secret management method chosen during generation
+- Security rules (never commit secrets, .gitignore patterns)
+- EA-specific guidelines (if Extension Attribute template)
+- Session diary instruction for tracking work
+
+**Generated `SESSION_DIARY.md`** is initialized with a first entry documenting what Shikomi created.
+
+**Monorepo behavior:** Files are generated at the repo root. If `CLAUDE.md` or `SESSION_DIARY.md` already exist, they are not overwritten.
+
+For the full integration guide — including global config setup, common scenarios, and troubleshooting — see [docs/guide-claude-code-integration.md](docs/guide-claude-code-integration.md).
+
+---
+
+## Workshop
+
+Attending the **macOS GitOps** workshop? See the [Workshop Preparation Guide](docs/guide-workshop-preparation.md) for what to set up before arriving.
+
 ---
 
 ## Requirements
@@ -715,11 +808,11 @@ brew install 1password-cli gh pre-commit gitleaks
 
 ## Roadmap
 
+- [x] **Non-interactive CLI Mode** - Full flag support for automation (v2.0.0)
+- [x] **Claude Code Integration** - Project-aware CLAUDE.md scaffolding (v2.0.0)
 - [ ] **MDM-Agnostic Mode** - Support for Intune, Kandji, Mosyle
-- [ ] **VS Code Extension** - Native IDE integration
 - [ ] **Template Library** - Pre-built script templates
 - [ ] **Script Testing Framework** - Automated testing utilities
-- [ ] **Web UI** - Browser-based script generator
 
 ---
 

@@ -18,7 +18,7 @@ Before you begin, make sure you have the following installed:
 
 ## Step 1: Scaffold a New Project
 
-Run Shikomi to generate a new script project:
+### Option A: Interactive Wizard
 
 ```bash
 shikomi my_awesome_script
@@ -32,8 +32,24 @@ The interactive wizard walks you through:
 4. **Secrets management** (1Password, file-based, or manual)
 5. **Pre-commit hook level** (basic for secrets only, or enhanced for 9 checks)
 6. **GitHub Actions workflows** (PR validation and optional Jamf Pro deployment)
+7. **Claude Code configuration** (CLAUDE.md + SESSION_DIARY.md)
 
-When complete, Shikomi generates a project with this structure:
+### Option B: Non-interactive (CLI Flags)
+
+```bash
+# Fully automated with defaults
+shikomi my_awesome_script --auto
+
+# Automated with all the bells and whistles
+shikomi my_awesome_script --auto --workflow y --claude y --hooks enhanced
+
+# With parameters from a JSON file
+shikomi my_awesome_script --auto --params-file params.json --claude y
+```
+
+Run `shikomi --help` for all available flags.
+
+### Generated Project Structure
 
 ```
 my_awesome_script/
@@ -43,6 +59,8 @@ my_awesome_script/
 ├── CHANGELOG.md            # Version history
 ├── .gitignore              # Security-focused ignore rules
 ├── .pre-commit-config.yaml # Secret scanning and linting hooks
+├── CLAUDE.md               # Claude Code project config (if --claude y)
+├── SESSION_DIARY.md        # Session tracking (if --claude y)
 └── .github/
     └── workflows/
         ├── validate-version.yml   # PR validation (ShellCheck + version checks)
@@ -72,7 +90,7 @@ The script comes pre-wired with:
 
 Run your script to verify it works:
 
-```bash
+```bashv
 # Test with default parameter values
 sudo ./my_awesome_script.sh
 
@@ -235,7 +253,7 @@ When you make changes to your script, use `bump-version` to keep everything in s
 bump-version patch "Fixed permission check"
 
 # Or bump and commit in one step
-bump-version patch "Fixed permission check" --commit
+bump-version patch "Fixed permission check" [[2026-03-23]]
 ```
 
 `bump-version` updates the version in all of these locations at once:

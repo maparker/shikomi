@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-03-23
+
+### Added
+- **Non-interactive CLI mode** (`--auto` flag) — all prompts can be skipped with sensible defaults
+- 13 CLI flags for controlling every interactive prompt: `--template`, `--ea-suffix`, `--scaffolding`, `--params-file`, `--no-params`, `--static-vars`, `--branch`, `--hooks`, `--workflow`, `--deploy-workflow`, `--github`, `--claude`
+- **`--params-file`** — load Jamf parameters from a JSON file, parsed with `plutil` (stock macOS, no python3/jq dependency)
+- **Claude Code scaffolding** (`--claude y`) — generates project-aware `CLAUDE.md` and initialized `SESSION_DIARY.md`
+  - `CLAUDE.md` includes: shell conventions, versioning rules, secret management method, security rules, EA guidelines (if applicable), session diary instruction
+  - In monorepo mode, files are generated at repo root only if they don't already exist
+- New library file: `lib/claude-setup.sh` — `generate_claude_md()` and `init_session_diary()` functions
+- `parse_params_file()` function in `lib/collection.sh` for non-interactive parameter ingestion
+- `show_usage()` function with comprehensive flag documentation and examples
+
+### Changed
+- Argument parsing rewritten from simple if/elif to `while/shift` loop supporting positional script name + flags
+- Each interactive prompt now checks for its corresponding flag before falling back to interactive input
+- Individual flags work without `--auto` (e.g., `shikomi my_script --template ea` skips only the template prompt)
+- `stage_monorepo_files()` in `lib/git-setup.sh` now stages `CLAUDE.md` and `SESSION_DIARY.md` when generated
+- Bumped version to 2.0.0
+
 ## [1.9.0] - 2026-03-22
 
 ### Changed

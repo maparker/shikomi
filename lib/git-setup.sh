@@ -160,6 +160,14 @@ function stage_monorepo_files() {
         git add "$SCRIPT_PATH"
     fi
 
+    # Stage Claude Code files if generated
+    if [[ "${GENERATE_CLAUDE:-false}" == true ]]; then
+        local repo_root
+        repo_root=$(git rev-parse --show-toplevel)
+        [[ -f "$repo_root/CLAUDE.md" ]] && git add "$repo_root/CLAUDE.md"
+        [[ -f "$repo_root/SESSION_DIARY.md" ]] && git add "$repo_root/SESSION_DIARY.md"
+    fi
+
     echo "Files staged on branch: $(git branch --show-current)"
     echo "   Next Step: git commit -m 'Add $SCRIPT_NAME script'"
 }

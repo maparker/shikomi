@@ -5,7 +5,7 @@
 # FUNCTIONS:   get_standard_vars_library(), apply_standard_var(),
 #              apply_custom_var(), apply_jamf_parameter(),
 #              apply_secret_parameter_1password(), apply_secret_parameter_local(),
-#              apply_secret_parameter_manual()
+#              apply_secret_parameter_manual(), parse_params_file()
 #
 # GLOBALS READ:
 #   SCRIPT_NAME, BLOCK_HEADER[], BLOCK_VARIABLES[], BLOCK_LOGGING[],
@@ -167,4 +167,82 @@ function apply_secret_parameter_manual() {
     BLOCK_LOGGING+=("log \"Config: $param_label [${var_name}]: ******* (Masked)\"")
     SECRET_REMINDERS+=("${var_name}: Configure secret storage manually")
     README_ROWS+=("| $var_name | \$$i | Manual configuration required |")
+}
+
+# Args: $1 = path to JSON params file
+# JSON schema: { "parameters": [ { "index": 4, "label": "...", "secret": bool,
+#   "storage": "1password"|"local"|"manual", "default": "...",
+#   "op_vault": "...", "op_item": "...", "op_field": "..." } ] }
+# Uses plutil (stock macOS) for JSON parsing — no python3 or jq required.
+function parse_params_file() {
+    local params_file="$1"
+
+    if [[ ! -f "$params_file" ]]; then
+        echo "Error: Parameters file not found: $params_file"
+        exit 1
+    fi
+
+    # Validate it's parseable JSON
+    if ! plutil -lint "$params_file" &>/dev/null; then
+        echo "Error: Invalid JSON in parameters file: $params_file"
+        exit 1
+    fi
+
+    # Get parameter count
+    local param_count
+    param_count=$(plutil -extract parameters raw -o - "$params_file" 2>/dev/null)
+    if [[ -z "$param_count" ]] || [[ "$param_count" == "0" ]]; then
+        echo "No parameters found in $params_file"
+        return
+    fi
+
+    echo "Found $param_count parameter(s) in config file"
+
+    local i=0
+    while [[ $i -lt $param_count ]]; do
+        local index label secret storage default_val op_vault op_item op_field
+
+        # Extract fields using plutil — missing fields return empty string
+        index=$(plutil -extract "parameters.${i}.index" raw -o - "$params_file" 2>/dev/null || echo "")
+        label=$(plutil -extract "parameters.${i}.label" raw -o - "$params_file" 2>/dev/null || echo "")
+        secret=$(plutil -extract "parameters.${i}.secret" raw -o - "$params_file" 2>/dev/null || echo "false")
+        storage=$(plutil -extract "parameters.${i}.storage" raw -o - "$params_file" 2>/dev/null || echo "manual")
+        default_val=$(plutil -extract "parameters.${i}.default" raw -o - "$params_file" 2>/dev/null || echo "")
+        op_vault=$(plutil -extract "parameters.${i}.op_vault" raw -o - "$params_file" 2>/dev/null || echo "Private")
+        op_item=$(plutil -extract "parameters.${i}.op_item" raw -o - "$params_file" 2>/dev/null || echo "")
+        op_field=$(plutil -extract "parameters.${i}.op_field" raw -o - "$params_file" 2>/dev/null || echo "")
+
+        # Validate required fields
+        if [[ -z "$index" ]] || [[ -z "$label" ]]; then
+            echo "Warning: Parameter $i missing 'index' or 'label', skipping"
+            i=$((i + 1))
+            continue
+        fi
+
+        # Derive variable name from label
+        local var_name
+        var_name=$(echo "$label" | tr '[:lower:]' '[:upper:]' | tr ' ' '_' | sed 's/[^A-Z0-9_]//g')
+
+        echo "  Parameter $index: $label ($var_name)"
+
+        if [[ "$secret" == "true" ]]; then
+            case "$storage" in
+                1password)
+                    op_item="${op_item:-jamf-${SCRIPT_NAME}}"
+                    op_field="${op_field:-$(echo "$var_name" | tr '[:upper:]' '[:lower:]')}"
+                    apply_secret_parameter_1password "$index" "$label" "$var_name" "$op_vault" "$op_item" "$op_field"
+                    ;;
+                local)
+                    apply_secret_parameter_local "$index" "$label" "$var_name"
+                    ;;
+                *)
+                    apply_secret_parameter_manual "$index" "$label" "$var_name"
+                    ;;
+            esac
+        else
+            apply_jamf_parameter "$index" "$label" "$var_name" "$default_val"
+        fi
+
+        i=$((i + 1))
+    done
 }

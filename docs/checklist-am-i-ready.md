@@ -95,6 +95,20 @@ Use this checklist before starting your first Shikomi project to make sure every
 
 ---
 
+## If Using Claude Code Scaffolding
+
+- [ ] **Claude Code** installed
+  ```bash
+  claude --version
+  # Install: npm install -g @anthropic-ai/claude-code
+  ```
+
+- [ ] Familiar with `CLAUDE.md` project configuration files
+
+- [ ] When scaffolding, use `--claude y` or answer "y" to the Claude Code prompt
+
+---
+
 ## Optional but Recommended
 
 - [ ] **Branch protection** enabled on `main` in GitHub
@@ -137,5 +151,9 @@ gitleaks version 2>/dev/null && echo "  Gitleaks: OK" || echo "  Gitleaks: not i
 Go scaffold your first script:
 
 ```bash
+# Interactive wizard
 shikomi my_first_script
+
+# Or fully automated
+shikomi my_first_script --auto --claude y
 ```

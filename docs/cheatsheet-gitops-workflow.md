@@ -31,7 +31,14 @@ git push ───────────┼────→ Pull Request opened
 
 ### Scaffold a New Script
 ```bash
+# Interactive wizard
 shikomi my_script_name
+
+# Non-interactive with defaults
+shikomi my_script_name --auto
+
+# Non-interactive with Claude Code setup
+shikomi my_script_name --auto --claude y --workflow y
 ```
 
 ### Implement and Test

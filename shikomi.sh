@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 2.0.0 - 2026-03-23 - Non-interactive CLI mode (--auto + flags), Claude Code scaffolding (--claude), plutil-based --params-file
 # 1.9.0 - 2026-03-22 - Extracted monolithic script into modular lib/ structure (6 sourced library files)
 # 1.8.0 - 2026-03-22 - Added Jamf Pro deploy workflow, --commit flag, portable bump-version, monorepo path resolution, removed bundled workflows
 # 1.7.1 - 2026-03-10 - Multiple fixes: LOG_FILE usage, input validation, CHANGELOG insertion, variable expansion, email fallback
@@ -34,7 +35,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.9.0"
+readonly SCRIPT_VERSION="2.0.0"
 readonly GENERATOR_NAME="shikomi"
 SHIKOMI_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -57,23 +58,109 @@ source "$SHIKOMI_LIB/docs.sh"
 source "$SHIKOMI_LIB/workflows.sh"
 source "$SHIKOMI_LIB/git-setup.sh"
 source "$SHIKOMI_LIB/collection.sh"
+source "$SHIKOMI_LIB/claude-setup.sh"
 
-# --- 0. Version/Help Check ---
-if [[ "$1" == "--version" ]] || [[ "$1" == "-v" ]]; then
-    echo "Shikomi v$SCRIPT_VERSION"
-    exit 0
-fi
+# --- 0. Argument Parsing ---
 
-if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+show_usage() {
     echo "Shikomi v$SCRIPT_VERSION - Smart macOS/MDM Script Generator"
     echo ""
-    echo "Usage: $(basename "$0") <script_name>"
+    echo "Usage: $(basename "$0") <script_name> [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -v, --version    Show version"
-    echo "  -h, --help       Show this help"
-    exit 0
+    echo "  -v, --version                Show version"
+    echo "  -h, --help                   Show this help"
+    echo ""
+    echo "Non-interactive mode:"
+    echo "  --auto                       Skip all prompts, use defaults for unset flags"
+    echo "  --template <regular|ea>      Script template type (default: regular)"
+    echo "  --ea-suffix <y|n>            Add _ea suffix for EA scripts (default: y)"
+    echo "  --scaffolding <y|n>          Generate per-script README/CHANGELOG (monorepo only)"
+    echo "  --params-file <path>         Load parameters from JSON file (see docs for schema)"
+    echo "  --no-params                  Skip parameter collection entirely"
+    echo "  --static-vars <1,2,4|none>   Standard macOS variables by number (comma-separated)"
+    echo "  --branch <y|n>              Create feature branch in monorepo (default: y)"
+    echo "  --hooks <basic|enhanced|none> Pre-commit hook level (default: basic)"
+    echo "  --workflow <y|n>             Add GitHub Actions validation workflow"
+    echo "  --deploy-workflow <y|n>      Add Jamf Pro deploy workflow"
+    echo "  --github <y|n>               Create private GitHub repo"
+    echo "  --claude <y|n>               Generate CLAUDE.md and SESSION_DIARY.md"
+    echo ""
+    echo "Examples:"
+    echo "  $(basename "$0") my_script                          # Interactive wizard"
+    echo "  $(basename "$0") my_script --auto                   # Fully automated, defaults"
+    echo "  $(basename "$0") my_script --auto --claude y        # Automated + Claude Code setup"
+    echo "  $(basename "$0") check_disk --auto --template ea --static-vars \"1,4,11\""
+    echo "  $(basename "$0") deploy_agent --auto --params-file params.json --workflow y"
+}
+
+# Pre-scan for --version / --help before requiring SCRIPT_NAME
+case "${1:-}" in
+    --version|-v) echo "Shikomi v$SCRIPT_VERSION"; exit 0 ;;
+    --help|-h)    show_usage; exit 0 ;;
+esac
+
+SCRIPT_NAME="${1:-}"
+if [[ -z "$SCRIPT_NAME" ]]; then
+    echo "Usage: $(basename "$0") <script_name> [OPTIONS]"
+    echo "Run '$(basename "$0") --help' for full usage"
+    exit 1
 fi
+shift  # consume SCRIPT_NAME, remaining args are flags
+
+# --- Flag defaults (empty = not set, use interactive or --auto default) ---
+FLAG_AUTO=false
+FLAG_TEMPLATE=""
+FLAG_EA_SUFFIX=""
+FLAG_SCAFFOLDING=""
+FLAG_PARAMS_FILE=""
+FLAG_NO_PARAMS=false
+FLAG_STATIC_VARS=""
+FLAG_BRANCH=""
+FLAG_HOOKS=""
+FLAG_WORKFLOW=""
+FLAG_DEPLOY_WORKFLOW=""
+FLAG_GITHUB=""
+FLAG_CLAUDE=""
+
+# --- Parse flags ---
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --non-interactive|--auto)
+            FLAG_AUTO=true
+            shift ;;
+        --template)
+            FLAG_TEMPLATE="$2"; shift 2 ;;
+        --ea-suffix)
+            FLAG_EA_SUFFIX="$2"; shift 2 ;;
+        --scaffolding)
+            FLAG_SCAFFOLDING="$2"; shift 2 ;;
+        --params-file)
+            FLAG_PARAMS_FILE="$2"; shift 2 ;;
+        --no-params)
+            FLAG_NO_PARAMS=true; shift ;;
+        --static-vars)
+            FLAG_STATIC_VARS="$2"; shift 2 ;;
+        --branch)
+            FLAG_BRANCH="$2"; shift 2 ;;
+        --hooks)
+            FLAG_HOOKS="$2"; shift 2 ;;
+        --workflow)
+            FLAG_WORKFLOW="$2"; shift 2 ;;
+        --deploy-workflow)
+            FLAG_DEPLOY_WORKFLOW="$2"; shift 2 ;;
+        --github)
+            FLAG_GITHUB="$2"; shift 2 ;;
+        --claude)
+            FLAG_CLAUDE="$2"; shift 2 ;;
+        --no-claude)
+            FLAG_CLAUDE="n"; shift ;;
+        *)
+            echo "Error: Unknown option: $1"
+            echo "Run '$(basename "$0") --help' for usage"
+            exit 1 ;;
+    esac
+done
 
 # --- 1. Prerequisites Check ---
 if ! command -v gh &> /dev/null; then
@@ -84,10 +171,8 @@ if ! command -v pre-commit &> /dev/null; then
 fi
 
 # --- 2. Context Awareness: Detect Existing Git Repo ---
-SCRIPT_NAME="$1"
-
 if [[ -z "$SCRIPT_NAME" ]]; then
-    echo "Usage: $(basename "$0") <script_name>"
+    echo "Usage: $(basename "$0") <script_name> [OPTIONS]"
     exit 1
 fi
 
@@ -132,9 +217,15 @@ if git rev-parse --is-inside-work-tree &> /dev/null; then
 
     # In monorepo mode, per-script scaffolding (README, CHANGELOG, bump-version) is optional
     GENERATE_SCAFFOLDING=false
-    read -rp "Generate per-script README, CHANGELOG, and bump-version.sh? (y/n) [n]: " gen_scaffolding
-    if [[ "$gen_scaffolding" =~ ^[Yy] ]]; then
-        GENERATE_SCAFFOLDING=true
+    if [[ -n "$FLAG_SCAFFOLDING" ]]; then
+        [[ "$FLAG_SCAFFOLDING" =~ ^[Yy] ]] && GENERATE_SCAFFOLDING=true
+    elif [[ "$FLAG_AUTO" == true ]]; then
+        GENERATE_SCAFFOLDING=false
+    else
+        read -rp "Generate per-script README, CHANGELOG, and bump-version.sh? (y/n) [n]: " gen_scaffolding
+        if [[ "$gen_scaffolding" =~ ^[Yy] ]]; then
+            GENERATE_SCAFFOLDING=true
+        fi
     fi
 else
     echo "=============================================="
@@ -157,13 +248,25 @@ else
 fi
 
 # --- 2. Template Selection ---
-echo ""
-echo "--- Script Template Selection ---"
-echo "What type of script do you want to create?"
-echo "  1) Regular Script     - Full-featured automation with parameters, logging, secrets"
-echo "  2) Extension Attribute - Simple Jamf inventory reporting (<result> output)"
-read -rp "Selection (1/2) [1]: " template_choice
-template_choice="${template_choice:-1}"
+if [[ -n "$FLAG_TEMPLATE" ]]; then
+    case "$FLAG_TEMPLATE" in
+        regular) template_choice="1" ;;
+        ea)      template_choice="2" ;;
+        *)
+            echo "Error: --template must be 'regular' or 'ea'"
+            exit 1 ;;
+    esac
+elif [[ "$FLAG_AUTO" == true ]]; then
+    template_choice="1"
+else
+    echo ""
+    echo "--- Script Template Selection ---"
+    echo "What type of script do you want to create?"
+    echo "  1) Regular Script     - Full-featured automation with parameters, logging, secrets"
+    echo "  2) Extension Attribute - Simple Jamf inventory reporting (<result> output)"
+    read -rp "Selection (1/2) [1]: " template_choice
+    template_choice="${template_choice:-1}"
+fi
 
 case "$template_choice" in
     1)
@@ -175,8 +278,14 @@ case "$template_choice" in
         echo "Selected: Extension Attribute"
         # For EA scripts, suggest _ea suffix if not present
         if [[ ! "$SCRIPT_NAME" =~ _ea$ ]]; then
-            read -rp "Add '_ea' suffix to script name? (y/n) [y]: " add_suffix
-            add_suffix="${add_suffix:-y}"
+            if [[ -n "$FLAG_EA_SUFFIX" ]]; then
+                add_suffix="$FLAG_EA_SUFFIX"
+            elif [[ "$FLAG_AUTO" == true ]]; then
+                add_suffix="y"
+            else
+                read -rp "Add '_ea' suffix to script name? (y/n) [y]: " add_suffix
+                add_suffix="${add_suffix:-y}"
+            fi
             if [[ "$add_suffix" =~ ^[Yy] ]]; then
                 SCRIPT_NAME="${SCRIPT_NAME}_ea"
                 SCRIPT_PATH="$PROJECT_DIR/${SCRIPT_NAME}.sh"
@@ -208,8 +317,16 @@ declare -a ONEPASSWORD_SECRETS  # Track 1Password secret references
 
 # Only collect Jamf parameters for regular scripts
 if [[ "$SCRIPT_TEMPLATE" == "regular" ]]; then
-    echo "Define Parameters (\$4-\$11). Press [Enter] on Label to finish."
-    echo ""
+    if [[ -n "$FLAG_PARAMS_FILE" ]]; then
+        # Non-interactive: load parameters from JSON file
+        echo "Loading parameters from: $FLAG_PARAMS_FILE"
+        parse_params_file "$FLAG_PARAMS_FILE"
+    elif [[ "$FLAG_NO_PARAMS" == true ]] || [[ "$FLAG_AUTO" == true && -z "$FLAG_PARAMS_FILE" ]]; then
+        echo "Skipping parameter collection."
+    else
+        # Interactive parameter collection
+        echo "Define Parameters (\$4-\$11). Press [Enter] on Label to finish."
+        echo ""
 
 for i in {4..11}; do
     echo "--- Parameter $i ---"
@@ -292,6 +409,7 @@ for i in {4..11}; do
         apply_jamf_parameter "$i" "$param_label" "$var_name" "$param_default"
     fi
 done
+    fi  # end interactive vs non-interactive params
 
 else
     echo "Extension Attributes typically don't use Jamf parameters."
@@ -300,62 +418,79 @@ else
 fi
 
 # --- 3.5. Static Configuration Variables (Non-Jamf Parameters) ---
-echo ""
-if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
-    echo "--- Data Collection Variables ---"
-    echo "Extension Attributes often need to query system information."
-else
-    echo "--- Static Configuration Variables ---"
-    echo "These are hardcoded in the script (not MDM parameters)"
-fi
-read -rp "Add static configuration variables? (y/n): " add_static
-
 declare -a STATIC_VARS
 declare -a STATIC_README_ROWS
 
-if [[ "$add_static" =~ ^[Yy] ]]; then
-    get_standard_vars_library
-
-    echo ""
-    echo "Select from standard macOS variables (enter numbers separated by spaces):"
-    echo "  1.  SERIAL_NUMBER       - Mac serial number"
-    echo "  2.  LOGGED_IN_USER      - Currently logged in user"
-    echo "  3.  COMPUTER_NAME       - Computer name from System Preferences"
-    echo "  4.  OS_VERSION          - macOS version number"
-    echo "  5.  MODEL_IDENTIFIER    - Hardware model identifier"
-    echo "  6.  PRIMARY_IP          - Primary network IP address"
-    echo "  7.  HOSTNAME            - Network hostname"
-    echo "  8.  MAC_ADDRESS         - Primary MAC address"
-    echo "  9.  CURRENT_USER_HOME   - Home directory of logged in user"
-    echo "  10. BOOT_VOLUME         - Name of boot volume"
-    echo "  11. TOTAL_RAM_GB        - Total RAM in gigabytes"
-    echo "  12. PROCESSOR_NAME      - CPU processor name"
-    echo "  0.  Custom variable"
-    echo ""
-
-    read -rp "Selection (e.g., '1 2 4' or '0' for custom, or Enter to skip): " selection
-
-    if [[ -n "$selection" ]]; then
-        for num in $selection; do
-            if [[ "$num" == "0" ]]; then
-                # Custom variable input
-                while true; do
-                    echo ""
-                    read -rp "Custom variable name (or Enter to finish): " static_name
-                    [[ -z "$static_name" ]] && break
-
-                    # Convert to uppercase and clean
-                    static_name=$(echo "$static_name" | tr '[:lower:]' '[:upper:]' | tr ' ' '_' | sed 's/[^A-Z0-9_]//g')
-
-                    read -rp "Value: " static_value
-                    read -rp "Description: " static_desc
-
-                    apply_custom_var "$static_name" "$static_value" "$static_desc"
-                done
-            elif [[ "$num" =~ ^[1-9][0-9]*$ ]] && [[ -n "${STANDARD_VARS_NAMES[$num]}" ]]; then
+if [[ -n "$FLAG_STATIC_VARS" ]]; then
+    # Non-interactive: use flag value
+    if [[ "$FLAG_STATIC_VARS" != "none" ]]; then
+        get_standard_vars_library
+        IFS=',' read -ra _var_nums <<< "$FLAG_STATIC_VARS"
+        for num in "${_var_nums[@]}"; do
+            if [[ -n "${STANDARD_VARS_NAMES[$num]:-}" ]]; then
                 apply_standard_var "$num"
+            else
+                echo "Warning: Unknown standard variable number: $num (skipping)"
             fi
         done
+    fi
+elif [[ "$FLAG_AUTO" == true ]]; then
+    : # skip static vars in auto mode
+else
+    echo ""
+    if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
+        echo "--- Data Collection Variables ---"
+        echo "Extension Attributes often need to query system information."
+    else
+        echo "--- Static Configuration Variables ---"
+        echo "These are hardcoded in the script (not MDM parameters)"
+    fi
+    read -rp "Add static configuration variables? (y/n): " add_static
+
+    if [[ "$add_static" =~ ^[Yy] ]]; then
+        get_standard_vars_library
+
+        echo ""
+        echo "Select from standard macOS variables (enter numbers separated by spaces):"
+        echo "  1.  SERIAL_NUMBER       - Mac serial number"
+        echo "  2.  LOGGED_IN_USER      - Currently logged in user"
+        echo "  3.  COMPUTER_NAME       - Computer name from System Preferences"
+        echo "  4.  OS_VERSION          - macOS version number"
+        echo "  5.  MODEL_IDENTIFIER    - Hardware model identifier"
+        echo "  6.  PRIMARY_IP          - Primary network IP address"
+        echo "  7.  HOSTNAME            - Network hostname"
+        echo "  8.  MAC_ADDRESS         - Primary MAC address"
+        echo "  9.  CURRENT_USER_HOME   - Home directory of logged in user"
+        echo "  10. BOOT_VOLUME         - Name of boot volume"
+        echo "  11. TOTAL_RAM_GB        - Total RAM in gigabytes"
+        echo "  12. PROCESSOR_NAME      - CPU processor name"
+        echo "  0.  Custom variable"
+        echo ""
+
+        read -rp "Selection (e.g., '1 2 4' or '0' for custom, or Enter to skip): " selection
+
+        if [[ -n "$selection" ]]; then
+            for num in $selection; do
+                if [[ "$num" == "0" ]]; then
+                    # Custom variable input
+                    while true; do
+                        echo ""
+                        read -rp "Custom variable name (or Enter to finish): " static_name
+                        [[ -z "$static_name" ]] && break
+
+                        # Convert to uppercase and clean
+                        static_name=$(echo "$static_name" | tr '[:lower:]' '[:upper:]' | tr ' ' '_' | sed 's/[^A-Z0-9_]//g')
+
+                        read -rp "Value: " static_value
+                        read -rp "Description: " static_desc
+
+                        apply_custom_var "$static_name" "$static_value" "$static_desc"
+                    done
+                elif [[ "$num" =~ ^[1-9][0-9]*$ ]] && [[ -n "${STANDARD_VARS_NAMES[$num]}" ]]; then
+                    apply_standard_var "$num"
+                fi
+            done
+        fi
     fi
 fi
 
@@ -394,14 +529,61 @@ if [ "$GENERATE_SCAFFOLDING" = true ]; then
     generate_changelog
 fi  # end GENERATE_SCAFFOLDING
 
+# --- 5.5. Claude Code Configuration ---
+GENERATE_CLAUDE=false
+if [[ -n "$FLAG_CLAUDE" ]]; then
+    [[ "$FLAG_CLAUDE" =~ ^[Yy] ]] && GENERATE_CLAUDE=true
+elif [[ "$FLAG_AUTO" == true ]]; then
+    GENERATE_CLAUDE=false  # opt-in feature
+else
+    read -rp "Set up Claude Code configuration? (CLAUDE.md + SESSION_DIARY.md) (y/n) [n]: " setup_claude
+    if [[ "$setup_claude" =~ ^[Yy] ]]; then
+        GENERATE_CLAUDE=true
+    fi
+fi
+
+if [[ "$GENERATE_CLAUDE" == true ]]; then
+    if [[ "$IS_MONOREPO" == true ]]; then
+        # In monorepo mode, generate at repo root only if files don't exist
+        if [[ -f "$REPO_ROOT/CLAUDE.md" ]]; then
+            echo "CLAUDE.md already exists at repo root, skipping."
+        else
+            _SAVED_PROJECT_DIR="$PROJECT_DIR"
+            PROJECT_DIR="$REPO_ROOT"
+            echo "Generating CLAUDE.md..."
+            generate_claude_md
+            PROJECT_DIR="$_SAVED_PROJECT_DIR"
+        fi
+        if [[ -f "$REPO_ROOT/SESSION_DIARY.md" ]]; then
+            echo "SESSION_DIARY.md already exists at repo root, skipping."
+        else
+            _SAVED_PROJECT_DIR="$PROJECT_DIR"
+            PROJECT_DIR="$REPO_ROOT"
+            echo "Generating SESSION_DIARY.md..."
+            init_session_diary
+            PROJECT_DIR="$_SAVED_PROJECT_DIR"
+        fi
+    else
+        echo "Generating Claude Code configuration..."
+        generate_claude_md
+        init_session_diary
+    fi
+fi
+
 # --- 6. Branching Git Logic ---
 
 if [ "$IS_MONOREPO" = true ]; then
     # --- EXISTING REPO FLOW ---
 
     # Prompt for Branching
-    echo "You are in an existing Git repository."
-    read -rp "Do you want to create a new branch for this script? (Recommended) (y/n): " do_branch
+    if [[ -n "$FLAG_BRANCH" ]]; then
+        do_branch="$FLAG_BRANCH"
+    elif [[ "$FLAG_AUTO" == true ]]; then
+        do_branch="y"
+    else
+        echo "You are in an existing Git repository."
+        read -rp "Do you want to create a new branch for this script? (Recommended) (y/n): " do_branch
+    fi
 
     if [[ "$do_branch" =~ ^[Yy] ]]; then
         create_feature_branch
@@ -421,12 +603,20 @@ else
     generate_gitignore
 
     # Install Pre-commit if available
-    if install_precommit_hooks; then
-        echo ""
-        echo "Pre-commit hooks protect against secrets and code quality issues."
-        read -rp "Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e): " hook_level
+    if [[ "$FLAG_HOOKS" == "none" ]]; then
+        echo "Skipping pre-commit hooks (--hooks none)."
+    elif install_precommit_hooks; then
+        if [[ -n "$FLAG_HOOKS" ]]; then
+            hook_level="$FLAG_HOOKS"
+        elif [[ "$FLAG_AUTO" == true ]]; then
+            hook_level="basic"
+        else
+            echo ""
+            echo "Pre-commit hooks protect against secrets and code quality issues."
+            read -rp "Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e): " hook_level
+        fi
 
-        if [[ "$hook_level" =~ ^[Ee] ]]; then
+        if [[ "$hook_level" =~ ^[Ee] ]] || [[ "$hook_level" == "enhanced" ]]; then
             generate_precommit_config "enhanced"
         else
             generate_precommit_config "basic"
@@ -434,13 +624,25 @@ else
     fi
 
     # Optional: Generate GitHub Actions workflows
-    read -rp "Add GitHub Actions workflow for PR validation (ShellCheck + version checks)? (y/n): " add_workflow
+    if [[ -n "$FLAG_WORKFLOW" ]]; then
+        add_workflow="$FLAG_WORKFLOW"
+    elif [[ "$FLAG_AUTO" == true ]]; then
+        add_workflow="n"
+    else
+        read -rp "Add GitHub Actions workflow for PR validation (ShellCheck + version checks)? (y/n): " add_workflow
+    fi
     if [[ "$add_workflow" =~ ^[Yy] ]]; then
         echo "Generating validation workflow..."
         generate_validate_workflow "."
 
         # Optional: Add Jamf Pro deployment workflow
-        read -rp "Also add a workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy_workflow
+        if [[ -n "$FLAG_DEPLOY_WORKFLOW" ]]; then
+            add_deploy_workflow="$FLAG_DEPLOY_WORKFLOW"
+        elif [[ "$FLAG_AUTO" == true ]]; then
+            add_deploy_workflow="n"
+        else
+            read -rp "Also add a workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy_workflow
+        fi
         if [[ "$add_deploy_workflow" =~ ^[Yy] ]]; then
             echo "Generating Jamf Pro deploy workflow..."
             generate_deploy_workflow "."
@@ -451,7 +653,13 @@ else
 
     # GitHub Remote Creation
     if command -v gh &> /dev/null; then
-        read -rp "Create private GitHub repo? (y/n): " create_gh
+        if [[ -n "$FLAG_GITHUB" ]]; then
+            create_gh="$FLAG_GITHUB"
+        elif [[ "$FLAG_AUTO" == true ]]; then
+            create_gh="n"
+        else
+            read -rp "Create private GitHub repo? (y/n): " create_gh
+        fi
         if [[ "$create_gh" =~ ^[Yy] ]]; then
             create_github_repo
         fi
@@ -490,6 +698,8 @@ else
     [[ -f ".github/workflows/validate-version.yml" ]] && echo "  * .github/workflows/validate-version.yml"
     [[ -f ".github/workflows/deploy-to-jamf.yml" ]] && echo "  * .github/workflows/deploy-to-jamf.yml"
 fi
+[[ "$GENERATE_CLAUDE" == true ]] && echo "  * CLAUDE.md"
+[[ "$GENERATE_CLAUDE" == true ]] && echo "  * SESSION_DIARY.md"
 echo ""
 
 if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
