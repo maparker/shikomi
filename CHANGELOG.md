@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-03-27
+
+### Added
+- Removed per-repo bump-version.sh scaffolding; bump-version is now used exclusively as a system-installed command via install.sh
+
+## [1.2.1] - 2026-03-27
+
+### Fixed
+- Removed per-repo bump-version.sh scaffolding in favor of system-installed bump-version
+
 ## [2.0.0] - 2026-03-23
 
 ### Added
@@ -19,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New library file: `lib/claude-setup.sh` — `generate_claude_md()` and `init_session_diary()` functions
 - `parse_params_file()` function in `lib/collection.sh` for non-interactive parameter ingestion
 - `show_usage()` function with comprehensive flag documentation and examples
+- **Monorepo deploy workflow** — `generate_monorepo_deploy_workflow()` auto-detects changed versioned scripts via `git diff`, deploys each to Jamf Pro, posts summary table
+- **Monorepo validation workflow** — `generate_monorepo_validate_workflow()` runs ShellCheck and Gitleaks on changed scripts only
+- Monorepo mode in `shikomi.sh` now offers workflow generation (previously only new-repo mode did)
+- `add_security_tools.sh` auto-detects monorepo (multiple versioned scripts) and generates monorepo workflow
 
 ### Changed
 - Argument parsing rewritten from simple if/elif to `while/shift` loop supporting positional script name + flags

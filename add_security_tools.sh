@@ -231,6 +231,43 @@ echo ""
 # 3b. Optional: Jamf Pro deployment workflow
 read -rp "Add GitHub Actions workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy
 if [[ "$add_deploy" =~ ^[Yy] ]]; then
+    # Detect if this is a monorepo (multiple versioned scripts)
+    VERSIONED_COUNT=0
+    while IFS= read -r -d '' f; do
+        if [[ "$(basename "$f")" != "bump-version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "$f" 2>/dev/null; then
+            VERSIONED_COUNT=$((VERSIONED_COUNT + 1))
+        fi
+    done < <(find . -name '*.sh' -print0 2>/dev/null)
+
+    if [[ $VERSIONED_COUNT -gt 1 ]]; then
+        echo "Detected $VERSIONED_COUNT versioned scripts — using monorepo deploy workflow."
+        echo "  (Deploys only changed versioned scripts on merge to main)"
+        IS_MONOREPO_DEPLOY=true
+    else
+        IS_MONOREPO_DEPLOY=false
+    fi
+
+    if [[ "$IS_MONOREPO_DEPLOY" == true ]]; then
+        # Check if Shikomi lib is available for the monorepo template
+        SHIKOMI_LIB=""
+        if [[ -d "$HOME/.local/lib/shikomi/lib" ]]; then
+            SHIKOMI_LIB="$HOME/.local/lib/shikomi/lib"
+        elif [[ -d "/usr/local/lib/shikomi/lib" ]]; then
+            SHIKOMI_LIB="/usr/local/lib/shikomi/lib"
+        fi
+
+        if [[ -n "$SHIKOMI_LIB" ]]; then
+            source "$SHIKOMI_LIB/workflows.sh"
+            echo "Generating monorepo deploy workflow..."
+            generate_monorepo_deploy_workflow "."
+        else
+            echo "Warning: Shikomi lib not found. Install Shikomi for monorepo workflow generation."
+            echo "  Falling back to single-script deploy workflow."
+            IS_MONOREPO_DEPLOY=false
+        fi
+    fi
+
+    if [[ "$IS_MONOREPO_DEPLOY" != true ]]; then
     echo "Generating Jamf Pro deploy workflow..."
     cat > .github/workflows/deploy-to-jamf.yml << 'EOF'
 name: Deploy Script to Jamf Pro
@@ -408,6 +445,8 @@ EOF
     echo "  JAMF_CLIENT_ID     - API client ID from Jamf Pro"
     echo "  JAMF_CLIENT_SECRET - API client secret from Jamf Pro"
     echo "  JAMF_URL           - Jamf Pro URL (e.g. https://yourinstance.jamfcloud.com)"
+    fi  # end single-script fallback
+
     DEPLOY_ADDED=true
 else
     DEPLOY_ADDED=false
@@ -422,7 +461,7 @@ cat > .git/hooks/pre-push << 'EOF'
 echo "Running pre-push checks..."
 
 # Check for uncommitted version changes
-if git diff --name-only | grep -qE "(bump_version\.sh|.*_README\.md|CHANGELOG\.md)"; then
+if git diff --name-only | grep -qE "(.*_README\.md|CHANGELOG\.md)"; then
     echo "ERROR: You have uncommitted version-related changes"
     echo "Please commit all changes before pushing"
     exit 1
@@ -442,7 +481,7 @@ for script in *.sh; do
                 echo "ERROR: Version mismatch in $script"
                 echo "  Script: $SCRIPT_VERSION"
                 echo "  README: $README_VERSION"
-                echo "  Fix: ./bump_version.sh $script patch 'Sync version'"
+                echo "  Fix: bump-version $script patch 'Sync version'"
                 FOUND_MISMATCH=true
             fi
         fi

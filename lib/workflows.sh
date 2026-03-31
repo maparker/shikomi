@@ -2,7 +2,8 @@
 # LIB:         workflows.sh
 # DESCRIPTION: GitHub Actions workflow generation functions for Shikomi
 #
-# FUNCTIONS:   generate_validate_workflow(), generate_deploy_workflow()
+# FUNCTIONS:   generate_validate_workflow(), generate_deploy_workflow(),
+#              generate_monorepo_validate_workflow(), generate_monorepo_deploy_workflow()
 #
 # GLOBALS READ: None
 # GLOBALS WRITTEN: None (writes YAML files to target directory)
@@ -271,6 +272,313 @@ jobs:
 DEPLOY_EOF
 
     echo "✓ deploy-to-jamf.yml created"
+    echo ""
+    echo "Required GitHub Secrets for deployment:"
+    echo "  JAMF_CLIENT_ID     - API client ID from Jamf Pro"
+    echo "  JAMF_CLIENT_SECRET - API client secret from Jamf Pro"
+    echo "  JAMF_URL           - Jamf Pro URL (e.g. https://yourinstance.jamfcloud.com)"
+    echo ""
+    git add "$target_dir/.github/workflows/deploy-to-jamf.yml"
+}
+
+function generate_monorepo_validate_workflow() {
+    local target_dir="$1"
+    mkdir -p "$target_dir/.github/workflows"
+
+    cat > "$target_dir/.github/workflows/validate-scripts.yml" << 'WORKFLOW_EOF'
+name: Validate Scripts
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - '**.sh'
+
+jobs:
+  shellcheck:
+    name: ShellCheck Changed Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find changed shell scripts
+        id: changed
+        run: |
+          CHANGED=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}...HEAD -- '*.sh' | grep -v 'bump-version.sh' || true)
+          if [[ -z "$CHANGED" ]]; then
+            echo "No shell scripts changed in this PR."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Changed scripts:"
+            echo "$CHANGED"
+            echo "$CHANGED" > /tmp/changed_scripts.txt
+            echo "count=$(echo "$CHANGED" | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install ShellCheck
+        if: steps.changed.outputs.skip != 'true'
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck on changed scripts
+        if: steps.changed.outputs.skip != 'true'
+        run: |
+          ERRORS=0
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            echo "Checking: $file"
+            if shellcheck --severity=warning "$file"; then
+              echo "  PASS"
+            else
+              echo "  FAIL"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < /tmp/changed_scripts.txt
+
+          if [[ $ERRORS -gt 0 ]]; then
+            echo ""
+            echo "ShellCheck found issues in $ERRORS file(s)"
+            exit 1
+          fi
+          echo ""
+          echo "All ${{ steps.changed.outputs.count }} script(s) passed ShellCheck"
+
+  gitleaks:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+WORKFLOW_EOF
+
+    git add "$target_dir/.github/workflows/validate-scripts.yml"
+    echo "✓ validate-scripts.yml created (monorepo — validates changed scripts only)"
+}
+
+function generate_monorepo_deploy_workflow() {
+    local target_dir="$1"
+    mkdir -p "$target_dir/.github/workflows"
+
+    cat > "$target_dir/.github/workflows/deploy-to-jamf.yml" << 'DEPLOY_EOF'
+name: Deploy Scripts to Jamf Pro
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Changed Scripts to Jamf Pro
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed versioned scripts
+        id: detect
+        run: |
+          # Find all .sh files changed in this push (anywhere in repo)
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD -- '*.sh')
+
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No .sh files changed in this push."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Filter to only versioned scripts (have readonly SCRIPT_VERSION=)
+          DEPLOY_LIST=""
+          DEPLOY_COUNT=0
+          SKIPPED=""
+          for file in $CHANGED_FILES; do
+            # Skip deleted files
+            if [[ ! -f "$file" ]]; then
+              SKIPPED="${SKIPPED}${file} (deleted)"$'\n'
+              continue
+            fi
+            # Skip bump-version.sh anywhere in the repo
+            if [[ "$(basename "$file")" == "bump-version.sh" ]]; then
+              continue
+            fi
+            # Only deploy scripts with readonly SCRIPT_VERSION=
+            if grep -q "^readonly SCRIPT_VERSION=" "$file" 2>/dev/null; then
+              DEPLOY_LIST="${DEPLOY_LIST}${file}"$'\n'
+              DEPLOY_COUNT=$((DEPLOY_COUNT + 1))
+            else
+              SKIPPED="${SKIPPED}${file} (no SCRIPT_VERSION)"$'\n'
+            fi
+          done
+
+          if [[ $DEPLOY_COUNT -eq 0 ]]; then
+            echo "No versioned scripts changed. Skipping deployment."
+            if [[ -n "$SKIPPED" ]]; then
+              echo "Skipped files:"
+              echo "$SKIPPED"
+            fi
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Found $DEPLOY_COUNT versioned script(s) to deploy:"
+          echo "$DEPLOY_LIST"
+
+          # Write deploy list for next step
+          printf '%s' "$DEPLOY_LIST" > /tmp/deploy_list.txt
+          echo "count=$DEPLOY_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to Jamf Pro
+        if: steps.detect.outputs.skip != 'true'
+        id: auth
+        env:
+          JAMF_CLIENT_ID: ${{ secrets.JAMF_CLIENT_ID }}
+          JAMF_CLIENT_SECRET: ${{ secrets.JAMF_CLIENT_SECRET }}
+          JAMF_URL: ${{ secrets.JAMF_URL }}
+        run: |
+          if [[ -z "$JAMF_CLIENT_ID" || -z "$JAMF_CLIENT_SECRET" || -z "$JAMF_URL" ]]; then
+            echo "Error: Missing required secrets (JAMF_CLIENT_ID, JAMF_CLIENT_SECRET, JAMF_URL)"
+            exit 1
+          fi
+
+          RESPONSE=$(curl -s -X POST "${JAMF_URL}/api/oauth/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${JAMF_CLIENT_ID}&client_secret=${JAMF_CLIENT_SECRET}&grant_type=client_credentials")
+
+          TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
+
+          if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+            echo "Error: Failed to authenticate to Jamf Pro"
+            echo "$RESPONSE" | jq .
+            exit 1
+          fi
+
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+          echo "Authenticated to Jamf Pro"
+
+      - name: Deploy changed scripts
+        if: steps.detect.outputs.skip != 'true'
+        env:
+          JAMF_URL: ${{ secrets.JAMF_URL }}
+        run: |
+          TOKEN="${{ steps.auth.outputs.token }}"
+          SUCCESS=0
+          FAILED=0
+          SUMMARY=""
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            # Extract script name (strip directory path and .sh extension)
+            SCRIPT_NAME="$(basename "${file%.sh}")"
+            SCRIPT_VERSION=$(grep "^readonly SCRIPT_VERSION=" "$file" | sed 's/.*"\(.*\)".*/\1/')
+
+            echo ""
+            echo "=== Deploying: $SCRIPT_NAME v$SCRIPT_VERSION (from $file) ==="
+
+            # Look up in Jamf Pro (try without .sh, then with .sh)
+            SCRIPT_ID=""
+            RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}%22" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Accept: application/json")
+            SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+
+            if [[ -z "$SCRIPT_ID" ]]; then
+              RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}.sh%22" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Accept: application/json")
+              SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+            fi
+
+            # Build JSON payload
+            PAYLOAD=$(jq -n \
+              --arg name "$SCRIPT_NAME" \
+              --arg info "Deployed from GitHub (v${SCRIPT_VERSION})" \
+              --arg contents "$(cat "$file")" \
+              '{
+                name: $name,
+                info: $info,
+                scriptContents: $contents,
+                priority: "AFTER",
+                categoryId: "-1"
+              }')
+
+            # Create or update
+            if [[ -n "$SCRIPT_ID" ]]; then
+              ACTION="update"
+              echo "  Found existing script (ID: $SCRIPT_ID), updating..."
+              HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+                -X PUT "${JAMF_URL}/api/v1/scripts/${SCRIPT_ID}" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD")
+            else
+              ACTION="create"
+              echo "  Script not found in Jamf Pro, creating..."
+              HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+                -X POST "${JAMF_URL}/api/v1/scripts" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD")
+            fi
+
+            if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
+              echo "  SUCCESS: $SCRIPT_NAME v${SCRIPT_VERSION} deployed (HTTP $HTTP_CODE)"
+              SUCCESS=$((SUCCESS + 1))
+              SUMMARY="${SUMMARY}| ${SCRIPT_NAME} | ${SCRIPT_VERSION} | ${ACTION} | ${file} | success |\n"
+            else
+              echo "  FAILED: $SCRIPT_NAME deployment failed (HTTP $HTTP_CODE)"
+              cat /tmp/response.json | jq . 2>/dev/null || cat /tmp/response.json
+              FAILED=$((FAILED + 1))
+              SUMMARY="${SUMMARY}| ${SCRIPT_NAME} | ${SCRIPT_VERSION} | ${ACTION} | ${file} | **FAILED** |\n"
+            fi
+          done < /tmp/deploy_list.txt
+
+          echo ""
+          echo "=== Results: $SUCCESS deployed, $FAILED failed ==="
+
+          # Save summary for next step
+          echo "$SUCCESS" > /tmp/deploy_success.txt
+          echo "$FAILED" > /tmp/deploy_failed.txt
+          printf '%b' "$SUMMARY" > /tmp/deploy_summary.txt
+
+          # Fail the workflow if any deployments failed
+          if [[ $FAILED -gt 0 ]]; then
+            exit 1
+          fi
+
+      - name: Deployment summary
+        if: always() && steps.detect.outputs.skip != 'true'
+        run: |
+          SUCCESS=$(cat /tmp/deploy_success.txt 2>/dev/null || echo "0")
+          FAILED=$(cat /tmp/deploy_failed.txt 2>/dev/null || echo "0")
+
+          {
+            echo "## Deployment Summary"
+            echo ""
+            echo "**Deployed:** ${SUCCESS} | **Failed:** ${FAILED}"
+            echo ""
+            echo "| Script | Version | Action | Path | Status |"
+            echo "|--------|---------|--------|------|--------|"
+            cat /tmp/deploy_summary.txt 2>/dev/null || echo "| — | — | — | — | No results |"
+            echo ""
+            echo "**Commit:** ${{ github.sha }}"
+          } >> $GITHUB_STEP_SUMMARY
+DEPLOY_EOF
+
+    echo "✓ deploy-to-jamf.yml created (monorepo — deploys changed versioned scripts)"
     echo ""
     echo "Required GitHub Secrets for deployment:"
     echo "  JAMF_CLIENT_ID     - API client ID from Jamf Pro"

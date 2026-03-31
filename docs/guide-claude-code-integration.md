@@ -16,7 +16,7 @@ A project-level configuration file that gives Claude Code context about the repo
 |---------|----------------|-----------|
 | Project overview (name, type, generator version) | Yes | Template type |
 | Shell conventions (bash 3.2+, shellcheck, shebang) | Yes | — |
-| Versioning rules (use bump-version.sh) | Yes | — |
+| Versioning rules (use `bump-version`) | Yes | — |
 | Secret management method | Yes | 1Password / local / none |
 | Security rules (.gitignore patterns, never commit secrets) | Yes | — |
 | Extension Attribute guidelines | Only for EA templates | Template type |
@@ -78,7 +78,7 @@ Once configured, a typical interaction looks like this:
 2. Reads the generated `install_slack.sh`
 3. Replaces the `# TODO` section with actual installation logic
 4. Tests with `shellcheck --severity=warning install_slack.sh`
-5. Uses `bump-version.sh` if version changes are needed
+5. Uses `bump-version` if version changes are needed
 6. Appends a session diary entry
 
 The key insight: Claude Code handles scaffolding and logic in one session. The human reviews the result rather than writing from scratch.
@@ -151,7 +151,7 @@ Parsed with `plutil` (stock macOS) — no python3 or jq required.
 shikomi install_slack --auto --claude y
 ```
 
-Creates a new directory with script, README, CHANGELOG, bump-version, .gitignore, pre-commit hooks, CLAUDE.md, and SESSION_DIARY.md. Git repo initialized and committed.
+Creates a new directory with script, README, CHANGELOG, .gitignore, pre-commit hooks, CLAUDE.md, and SESSION_DIARY.md. Git repo initialized and committed.
 
 ### New Extension Attribute
 
@@ -221,20 +221,20 @@ This separation keeps each file focused and avoids duplication.
 
 ## Versioning with Claude Code
 
-After Claude Code writes or modifies script logic, it should use bump-version.sh rather than manually editing version headers:
+After Claude Code writes or modifies script logic, it should use the system-installed `bump-version` command rather than manually editing version headers:
 
 ```bash
 # From the project directory
-./bump-version.sh patch "Added Slack installation logic"
+bump-version patch "Added Slack installation logic"
 
 # Or bump and commit in one step
-./bump-version.sh patch "Added Slack installation logic" --commit
+bump-version patch "Added Slack installation logic" --commit
 
 # In a monorepo, specify the script
-./bump-version.sh install_slack.sh patch "Added installation logic" --commit
+bump-version install_slack.sh patch "Added installation logic" --commit
 ```
 
-The generated CLAUDE.md includes this instruction, so Claude Code will follow it automatically.
+`bump-version` is installed to your PATH via Shikomi's `install.sh`. The generated CLAUDE.md includes this instruction, so Claude Code will follow it automatically.
 
 ---
 

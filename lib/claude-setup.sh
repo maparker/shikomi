@@ -55,8 +55,9 @@ This file provides guidance to Claude Code when working in this repository.
 ## Versioning
 
 - Version is stored in the script header as \`readonly SCRIPT_VERSION="x.y.z"\`
-- **Always** use \`./bump-version.sh\` to change versions — never edit version strings manually
-- bump-version.sh updates the script, README, and CHANGELOG simultaneously
+- **Always** use \`bump-version\` to change versions — never edit version strings manually
+- \`bump-version\` updates the script, README, and CHANGELOG simultaneously
+- \`bump-version\` is installed system-wide via Shikomi's \`install.sh\`
 - Follow semantic versioning: major.minor.patch
 
 ## Secret Management

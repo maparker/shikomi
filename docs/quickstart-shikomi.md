@@ -17,6 +17,16 @@ echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
+This installs two commands to your PATH:
+- **`shikomi`** — the script generator
+- **`bump-version`** — the version management utility
+
+Verify both are available:
+```bash
+shikomi --version
+bump-version --version
+```
+
 ### Install Optional Tools
 
 ```bash
@@ -26,6 +36,8 @@ brew install pre-commit gh gitleaks 1password-cli
 ---
 
 ## Create Your First Script
+
+### Option A: Interactive Wizard
 
 ```bash
 shikomi my_first_script
@@ -81,6 +93,21 @@ Add GitHub Actions workflow for PR validation (ShellCheck + version checks)? (y/
 Also add a workflow to deploy scripts to Jamf Pro on merge? (y/n):
 ```
 
+### Option B: Non-interactive (Skip the Wizard)
+
+```bash
+# Fully automated with sensible defaults
+shikomi my_first_script --auto
+
+# With Claude Code configuration
+shikomi my_first_script --auto --claude y
+
+# EA script with static variables
+shikomi check_serial --auto --template ea --static-vars "1,4"
+```
+
+Run `shikomi --help` for all available flags.
+
 ---
 
 ## What You Get
@@ -88,7 +115,6 @@ Also add a workflow to deploy scripts to Jamf Pro on merge? (y/n):
 ```
 my_first_script/
 ├── my_first_script.sh       # Your script (v1.0.0)
-├── bump-version.sh          # Version management
 ├── README.md                # Auto-generated docs
 ├── CHANGELOG.md             # Version history
 ├── .gitignore               # Security-focused rules
@@ -134,8 +160,11 @@ gh pr create --title "Add my_first_script" --body "Initial implementation"
 
 | Command | What It Does |
 |---------|-------------|
-| `shikomi my_script` | Scaffold a new script project |
+| `shikomi my_script` | Scaffold a new script (interactive) |
+| `shikomi my_script --auto` | Scaffold with defaults (non-interactive) |
+| `shikomi my_script --auto --claude y` | Scaffold with Claude Code config |
 | `shikomi --version` | Show Shikomi version |
+| `shikomi --help` | Show all flags and examples |
 | `bump-version patch "Fix"` | Bump patch version |
 | `bump-version minor "Feature"` | Bump minor version |
 | `bump-version major "Breaking"` | Bump major version |

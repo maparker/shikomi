@@ -82,8 +82,11 @@ Test the script locally to verify output format:
 This script uses [Semantic Versioning](https://semver.org/). To bump the version:
 
 \`\`\`bash
-./bump-version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description of changes"
+bump-version $SCRIPT_NAME.sh [major|minor|patch] "Description of changes"
 \`\`\`
+
+> **Note:** \`bump-version\` is installed system-wide via Shikomi's \`install.sh\`.
+> Run \`bump-version --version\` to verify it is on your PATH.
 EOF
 }
 
@@ -152,13 +155,16 @@ This project uses [Semantic Versioning](https://semver.org/):
 - **MINOR**: New features, backward-compatible
 - **PATCH**: Bug fixes, backward-compatible
 
-To bump the version, use the provided version bump script:
+To bump the version, use the system-installed \`bump-version\` command:
 \`\`\`bash
 # Auto-detect script (typical usage)
-./bump-version.sh [major|minor|patch] "Description of changes"
+bump-version [major|minor|patch] "Description of changes"
 
 # Or specify script explicitly
-./bump-version.sh $SCRIPT_NAME.sh [major|minor|patch] "Description"
+bump-version $SCRIPT_NAME.sh [major|minor|patch] "Description"
 \`\`\`
+
+> **Note:** \`bump-version\` is installed system-wide via Shikomi's \`install.sh\`.
+> Run \`bump-version --version\` to verify it is on your PATH.
 EOF
 }

@@ -54,7 +54,6 @@ Run `shikomi --help` for all available flags.
 ```
 my_awesome_script/
 ├── my_awesome_script.sh    # Your script (v1.0.0)
-├── bump-version.sh         # Version management utility
 ├── README.md               # Auto-generated documentation
 ├── CHANGELOG.md            # Version history
 ├── .gitignore              # Security-focused ignore rules
@@ -163,6 +162,35 @@ The pull request shows pass/fail status for each check. Reviewers can see exactl
 
 ---
 
+## Branch Protection: Enforcing the Gate
+
+Branch protection is a GitHub setting (not a workflow file) that prevents anyone from pushing directly to `main`. It must be configured per-repo in **Settings > Branches > Add branch ruleset** for `main`:
+
+- **Require pull request before merging** — no direct pushes to main
+- **Require approvals** — at least 1 reviewer must approve
+- **Require status checks to pass** — select `Validate Version` so CI must pass before merge
+
+### Why This Matters for Deployment
+
+The deploy workflow (`deploy-to-jamf.yml`) triggers on push to `main`. Without branch protection, anyone could push directly to main and deploy to Jamf Pro without review. Branch protection ensures every deployment goes through the PR approval gate first.
+
+### Per-Repo vs Organization-Level
+
+Branch protection must be set on each repo individually. There is no way for Shikomi or a workflow file to configure it automatically.
+
+**GitHub Team/Enterprise orgs** can create **organization-level rulesets** that apply to all repositories (or repos matching a naming pattern). Set it once, it applies everywhere. This is the recommended approach for teams managing many script repos.
+
+### Solo Admins on Free GitHub Accounts
+
+If you are the only contributor to a repo, requiring PR approvals means you cannot approve your own pull requests. You have two options:
+
+1. **Skip the approval requirement** — still require status checks to pass, but don't require approvals. The CI checks (ShellCheck, version validation, Gitleaks) still catch problems. You just won't have a human gate.
+2. **Use the PR workflow without branch protection** — work on feature branches, open PRs, let CI run, then merge yourself. This is discipline-based rather than enforcement-based, but the deploy workflow still only triggers on merge to main, so the workflow itself provides structure.
+
+The CI validation on PRs is the most universally useful gate. Branch protection with required approvals is the "team-scale" upgrade for when you have someone to review your work.
+
+---
+
 ## Step 6: Review and Merge
 
 A teammate (or you, depending on your team's process) reviews the pull request:
@@ -217,22 +245,45 @@ The deploy workflow creates scripts in Jamf Pro **without** the `.sh` extension.
 
 When updating, the workflow checks for both names (with and without `.sh`) so it will find existing scripts regardless of how they were originally named. However, if you are adding deployment to a repo where the script already exists in Jamf Pro with `.sh` in the name, verify that the first deployment updates the existing script rather than creating a duplicate.
 
-### Monorepo Note
+### Monorepo Deployment
 
-The deploy workflow is designed for single-script repositories (micro-repo mode). It finds the first `.sh` file with a `SCRIPT_VERSION` constant and deploys that.
+Shikomi automatically generates the correct deploy workflow based on context:
 
-If you are using monorepo mode with multiple scripts, the deploy workflow will need to be adapted. Some options:
+- **Micro-repo (new project):** Single-script workflow — finds the first versioned `.sh` file and deploys it.
+- **Monorepo (existing repo):** Multi-script workflow — detects which versioned scripts changed in the merge commit and deploys only those.
 
-- **One workflow per script**: Duplicate the workflow with different path filters so each script has its own deployment trigger.
-- **Config file mapping**: Add a `.jamf-deploy.json` that maps script filenames to Jamf Pro script names, and modify the workflow to read it.
-- **Changed-file detection**: Use a step that compares the merge diff to determine which scripts changed, then deploy only those.
+The monorepo workflow:
 
-For most teams starting out, the single-script micro-repo approach is the simplest path.
+1. Runs `git diff` against the previous commit to find changed `.sh` files
+2. Filters to only scripts with `readonly SCRIPT_VERSION=` (unversioned scripts are skipped)
+3. Skips `bump-version.sh` and deleted files
+4. Looks up each script in Jamf Pro by name (tries without `.sh`, then with `.sh`)
+5. Creates or updates each script via the Jamf Pro API
+6. Posts a summary table showing all deployments and their status
+
+**Adding deployment to an existing monorepo:**
+
+Run `add_security_tools.sh` from your repo root. It detects multiple versioned scripts and automatically generates the monorepo version of the deploy workflow.
+
+```bash
+cd /path/to/your-scripts-repo
+/path/to/shikomi/add_security_tools.sh
+```
+
+Or when creating a new script in an existing repo:
+
+```bash
+cd /path/to/your-scripts-repo
+shikomi my_new_script --auto --deploy-workflow y
+```
+
+**Only versioned scripts deploy.** To add a legacy script to the pipeline, add `readonly SCRIPT_VERSION="1.0.0"` to its header. The next time it changes and merges to main, the workflow will pick it up.
 
 ### Deployment Summary
 
 After each deployment, the workflow posts a summary to the Actions run:
 
+**Micro-repo:**
 ```
 ## Deployment Summary
 
@@ -240,6 +291,19 @@ Script:  my_awesome_script
 Version: 1.0.0
 Action:  create
 Commit:  abc1234
+```
+
+**Monorepo:**
+```
+## Deployment Summary
+
+Deployed: 3 | Failed: 0
+
+| Script | Version | Action | Path | Status |
+|--------|---------|--------|------|--------|
+| configureDefaultDock | 1.2.0 | update | jamf/Scripts/configureDefaultDock.sh | success |
+| delete_apple_default_apps | 1.0.0 | update | jamf/Scripts/delete_apple_default_apps.sh | success |
+| creator_studio_cleanup | 1.2.0 | create | jamf/Scripts/creator_studio_cleanup.sh | success |
 ```
 
 ---

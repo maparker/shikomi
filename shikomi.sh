@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     1.9.0
+# VERSION:     2.1.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 2.1.0 - 2026-03-27 - Removed per-repo bump-version.sh scaffolding; bump-version is now used exclusively as a system-installed command via install.sh
 # 2.0.0 - 2026-03-23 - Non-interactive CLI mode (--auto + flags), Claude Code scaffolding (--claude), plutil-based --params-file
 # 1.9.0 - 2026-03-22 - Extracted monolithic script into modular lib/ structure (6 sourced library files)
 # 1.8.0 - 2026-03-22 - Added Jamf Pro deploy workflow, --commit flag, portable bump-version, monorepo path resolution, removed bundled workflows
@@ -35,7 +36,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="2.0.0"
+readonly SCRIPT_VERSION="2.1.0"
 readonly GENERATOR_NAME="shikomi"
 SHIKOMI_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -215,14 +216,14 @@ if git rev-parse --is-inside-work-tree &> /dev/null; then
         exit 1
     fi
 
-    # In monorepo mode, per-script scaffolding (README, CHANGELOG, bump-version) is optional
+    # In monorepo mode, per-script scaffolding (README, CHANGELOG) is optional
     GENERATE_SCAFFOLDING=false
     if [[ -n "$FLAG_SCAFFOLDING" ]]; then
         [[ "$FLAG_SCAFFOLDING" =~ ^[Yy] ]] && GENERATE_SCAFFOLDING=true
     elif [[ "$FLAG_AUTO" == true ]]; then
         GENERATE_SCAFFOLDING=false
     else
-        read -rp "Generate per-script README, CHANGELOG, and bump-version.sh? (y/n) [n]: " gen_scaffolding
+        read -rp "Generate per-script README and CHANGELOG? (y/n) [n]: " gen_scaffolding
         if [[ "$gen_scaffolding" =~ ^[Yy] ]]; then
             GENERATE_SCAFFOLDING=true
         fi
@@ -519,12 +520,6 @@ if [ "$GENERATE_SCAFFOLDING" = true ]; then
         generate_regular_readme
     fi
 
-    # Set bump-version path
-    BUMP_PATH="$PROJECT_DIR/bump-version.sh"
-
-    echo "Generating bump-version.sh..."
-    copy_bump_version
-
     echo "Generating CHANGELOG.md..."
     generate_changelog
 fi  # end GENERATE_SCAFFOLDING
@@ -587,6 +582,35 @@ if [ "$IS_MONOREPO" = true ]; then
 
     if [[ "$do_branch" =~ ^[Yy] ]]; then
         create_feature_branch
+    fi
+
+    # Optional: Generate GitHub Actions workflows (monorepo versions)
+    if [[ ! -f "$REPO_ROOT/.github/workflows/validate-scripts.yml" ]]; then
+        if [[ -n "$FLAG_WORKFLOW" ]]; then
+            add_workflow="$FLAG_WORKFLOW"
+        elif [[ "$FLAG_AUTO" == true ]]; then
+            add_workflow="n"
+        else
+            read -rp "Add GitHub Actions workflow for PR validation? (y/n): " add_workflow
+        fi
+        if [[ "$add_workflow" =~ ^[Yy] ]]; then
+            echo "Generating monorepo validation workflow..."
+            generate_monorepo_validate_workflow "$REPO_ROOT"
+        fi
+    fi
+
+    if [[ ! -f "$REPO_ROOT/.github/workflows/deploy-to-jamf.yml" ]]; then
+        if [[ -n "$FLAG_DEPLOY_WORKFLOW" ]]; then
+            add_deploy_workflow="$FLAG_DEPLOY_WORKFLOW"
+        elif [[ "$FLAG_AUTO" == true ]]; then
+            add_deploy_workflow="n"
+        else
+            read -rp "Add workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy_workflow
+        fi
+        if [[ "$add_deploy_workflow" =~ ^[Yy] ]]; then
+            echo "Generating monorepo deploy workflow..."
+            generate_monorepo_deploy_workflow "$REPO_ROOT"
+        fi
     fi
 
     stage_monorepo_files
@@ -688,13 +712,11 @@ if [ "$IS_MONOREPO" = true ]; then
     if [ "$GENERATE_SCAFFOLDING" = true ]; then
         echo "  * ${SCRIPT_NAME}_README.md"
         echo "  * ${SCRIPT_NAME}_CHANGELOG.md"
-        echo "  * bump-version.sh"
     fi
 else
     echo "  * README.md"
     echo "  * CHANGELOG.md"
     echo "  * .gitignore"
-    echo "  * bump-version.sh"
     [[ -f ".github/workflows/validate-version.yml" ]] && echo "  * .github/workflows/validate-version.yml"
     [[ -f ".github/workflows/deploy-to-jamf.yml" ]] && echo "  * .github/workflows/deploy-to-jamf.yml"
 fi
@@ -762,10 +784,10 @@ else
     echo "  2. Test locally: sudo ./${SCRIPT_NAME}.sh"
 fi
 if [ "$IS_MONOREPO" = true ]; then
-    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "4"; else echo "3"; fi). Bump version: ./bump-version.sh ${SCRIPT_NAME}.sh patch \"Your changes\""
+    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "4"; else echo "3"; fi). Bump version: bump-version ${SCRIPT_NAME}.sh patch \"Your changes\""
     echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "5"; else echo "4"; fi). Commit: git commit -m \"Add ${SCRIPT_NAME} script\""
 else
-    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "4"; else echo "3"; fi). Bump version: ./bump-version.sh patch \"Your changes\""
+    echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "4"; else echo "3"; fi). Bump version: bump-version patch \"Your changes\""
     echo "  $(if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then echo "5"; else echo "4"; fi). Commit & tag: git commit -am \"your message\" && git tag v1.0.1"
 fi
 echo ""

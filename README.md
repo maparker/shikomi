@@ -67,10 +67,14 @@ echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-After installation, you can run commands from anywhere:
+The installer adds two commands to your PATH:
+- **`shikomi`** — the script generator
+- **`bump-version`** — the version management utility (used from any project directory)
+
+Verify both are available:
 ```bash
-shikomi my_awesome_script
-bump-version my_script.sh patch "Fixed bug"
+shikomi --version
+bump-version --version
 ```
 
 **Updating Shikomi:**
@@ -100,14 +104,18 @@ git clone https://github.com/maparker/shikomi.git
 cd shikomi
 
 # Make scripts executable
-chmod +x shikomi.sh bump-version.sh add_security_tools.sh
+chmod +x shikomi.sh add_security_tools.sh
 
 # Note: shikomi.sh sources lib/*.sh at runtime — keep the lib/ directory alongside it
 
-# Use with ./
+# Run shikomi directly
 ./shikomi.sh my_awesome_script
+
+# bump-version can also be run directly from the repo
 ./bump-version.sh my_script.sh patch "Fixed bug"
 ```
+
+> **Note:** Option 1 (install to PATH) is strongly recommended. It makes both `shikomi` and `bump-version` available system-wide, and generated project documentation references them as PATH commands.
 
 ### Basic Usage (Interactive)
 
@@ -594,6 +602,9 @@ When run inside an existing Git repository:
 - Offers feature branch creation
 - Uses namespaced files (`script_name_README.md`)
 - Preserves existing Git history
+- Generates monorepo-aware deploy workflow (auto-detects changed versioned scripts)
+
+For the full monorepo workflow — including new scripts, updates, legacy migration, and multi-script PRs — see [docs/guide-monorepo-workflow.md](docs/guide-monorepo-workflow.md).
 
 ### Micro-repo Mode
 When run outside a Git repository:
@@ -628,7 +639,7 @@ my_installer/
 └── README.md
 
 # Bump your script version
-./bump-version.sh patch "Fixed installation bug"
+bump-version patch "Fixed installation bug"
 
 # Output:
 # Current version: 1.0.0
@@ -725,7 +736,7 @@ shikomi my_script --auto --claude y
 
 **Generated `CLAUDE.md` includes:**
 - Project type and shell conventions (bash 3.2+, shellcheck)
-- Versioning rules (always use bump-version.sh)
+- Versioning rules (always use `bump-version`)
 - Secret management method chosen during generation
 - Security rules (never commit secrets, .gitignore patterns)
 - EA-specific guidelines (if Extension Attribute template)
@@ -810,9 +821,11 @@ brew install 1password-cli gh pre-commit gitleaks
 
 - [x] **Non-interactive CLI Mode** - Full flag support for automation (v2.0.0)
 - [x] **Claude Code Integration** - Project-aware CLAUDE.md scaffolding (v2.0.0)
+- [x] **Monorepo Deploy Workflow** - Auto-detect and deploy changed versioned scripts (v2.0.0)
+- [ ] **Extension Attribute Deployment** - Auto-deploy EAs via Jamf Classic API (XML payloads, `_ea.sh` naming convention detection)
+- [ ] **Script Testing Framework** - Automated testing utilities
 - [ ] **MDM-Agnostic Mode** - Support for Intune, Kandji, Mosyle
 - [ ] **Template Library** - Pre-built script templates
-- [ ] **Script Testing Framework** - Automated testing utilities
 
 ---
 

@@ -7,7 +7,7 @@
 #              create_github_repo(), stage_monorepo_files(), stage_and_commit_new_repo()
 #
 # GLOBALS READ:
-#   SCRIPT_NAME, SCRIPT_PATH, README_PATH, CHANGELOG_PATH, BUMP_PATH,
+#   SCRIPT_NAME, SCRIPT_PATH, README_PATH, CHANGELOG_PATH,
 #   GENERATE_SCAFFOLDING, PROJECT_DIR
 #
 # GLOBALS WRITTEN: None
@@ -155,7 +155,7 @@ function create_github_repo() {
 function stage_monorepo_files() {
     echo "Staging files..."
     if [ "$GENERATE_SCAFFOLDING" = true ]; then
-        git add "$SCRIPT_PATH" "$README_PATH" "$CHANGELOG_PATH" "$BUMP_PATH"
+        git add "$SCRIPT_PATH" "$README_PATH" "$CHANGELOG_PATH"
     else
         git add "$SCRIPT_PATH"
     fi
