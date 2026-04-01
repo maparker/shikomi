@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.2.0
+# VERSION:     1.2.1
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
@@ -11,7 +11,7 @@
 #   --commit    Stage and commit all version changes automatically
 #
 # EXAMPLES:
-#   Auto-detect script:
+#   Auto-detect script (picks the most recently modified versioned .sh file):
 #     ./bump-version.sh patch "Fixed bug in parameter validation"
 #     ./bump-version.sh patch "Fixed bug in parameter validation" --commit
 #
@@ -20,6 +20,7 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.2.1 - 2026-04-01 - Auto-detect now selects most recently modified script instead of first alphabetically
 # 1.2.0 - 2026-03-20 - Added --commit flag for automatic staging and committing of version bumps
 # 1.1.0 - 2026-01-18 - Added munkipkg build-info support for automatic package version updates
 # 1.0.1 - 2026-01-09 - Fixed file permissions to 755 for proper execution
@@ -28,7 +29,7 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.2.0"
+readonly SCRIPT_VERSION="1.2.1"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
@@ -82,22 +83,38 @@ elif [[ $# -eq 2 ]]; then
 
     # Find the main script (exclude bump-version.sh and any other utility scripts)
     # Strategy: Look for script with SCRIPT_VERSION constant (our generated scripts have this)
+    # When multiple candidates exist, pick the most recently modified one
     SCRIPT_FILE=""
+    SCRIPT_MTIME=0
+    CANDIDATE_COUNT=0
+    CANDIDATES=()
     shopt -s nullglob
     for file in *.sh; do
         if [[ "$file" != "bump-version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "$file" 2>/dev/null; then
-            if [[ -n "$SCRIPT_FILE" ]]; then
-                echo "Warning: Multiple versioned scripts found:"
-                echo "  - $SCRIPT_FILE"
-                echo "  - $file"
-                echo ""
-                echo "Using: $SCRIPT_FILE"
-                echo "Tip: Specify the script explicitly: $0 $file $BUMP_TYPE \"$CHANGE_DESC\""
-                break
+            CANDIDATES+=("$file")
+            CANDIDATE_COUNT=$((CANDIDATE_COUNT + 1))
+            # Get modification time as epoch seconds (macOS stat)
+            FILE_MTIME=$(stat -f "%m" "$file" 2>/dev/null) || FILE_MTIME=0
+            if [[ "$FILE_MTIME" -gt "$SCRIPT_MTIME" ]]; then
+                SCRIPT_MTIME="$FILE_MTIME"
+                SCRIPT_FILE="$file"
             fi
-            SCRIPT_FILE="$file"
         fi
     done
+
+    if [[ "$CANDIDATE_COUNT" -gt 1 ]]; then
+        echo "Warning: Multiple versioned scripts found:"
+        for c in "${CANDIDATES[@]}"; do
+            if [[ "$c" == "$SCRIPT_FILE" ]]; then
+                echo "  - $c (most recently modified)"
+            else
+                echo "  - $c"
+            fi
+        done
+        echo ""
+        echo "Using: $SCRIPT_FILE (most recently modified)"
+        echo "Tip: Specify the script explicitly: $0 <script.sh> $BUMP_TYPE \"$CHANGE_DESC\""
+    fi
 
     if [[ -z "$SCRIPT_FILE" ]]; then
         echo "Error: No versioned script found in current directory"
@@ -111,7 +128,7 @@ elif [[ $# -eq 2 ]]; then
 else
     echo "Usage: $0 [SCRIPT_FILE] <major|minor|patch> \"Change description\""
     echo ""
-    echo "Auto-detect script:"
+    echo "Auto-detect (targets the most recently modified versioned .sh file):"
     echo "  $0 patch \"Fixed bug in parameter validation\""
     echo "  $0 minor \"Added new feature for user notifications\""
     echo "  $0 major \"Breaking change: Removed deprecated parameters\""

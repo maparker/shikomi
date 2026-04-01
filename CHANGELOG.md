@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] - 2026-04-01
+
+### Fixed
+- **bump-version.sh** (v1.2.1): Auto-detect now selects the **most recently modified** versioned script instead of the first one alphabetically. When multiple `.sh` files with a `SCRIPT_VERSION` constant exist, the one you edited most recently is chosen — matching the intent of "bump the script I'm working on." A warning still lists all candidates and now indicates which was selected and why.
+
 ## [2.1.0] - 2026-03-27
 
 ### Added

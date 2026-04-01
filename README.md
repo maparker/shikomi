@@ -241,17 +241,23 @@ shikomi --version  # Show version
 shikomi --help     # Show full usage with all flags
 ```
 
-### 2. `bump-version` (v1.2.0)
+### 2. `bump-version` (v1.2.1)
 Semantic version management utility:
 ```bash
-# Bump version with change description
+# Bump version with change description (explicit script)
 bump-version my_script.sh patch "Fixed bug in user detection"
 bump-version my_script.sh minor "Added notification support"
 bump-version my_script.sh major "Breaking: Changed API interface"
 
 # Bump and commit in one step
 bump-version my_script.sh patch "Fixed bug" --commit
+
+# Auto-detect mode (omit the script name)
+bump-version patch "Fixed bug in user detection"
 ```
+
+**Auto-Detect Behavior:**
+When no script is specified, `bump-version` finds all `.sh` files in the current directory that contain a `SCRIPT_VERSION` constant (excluding `bump-version.sh` itself) and selects the **most recently modified** one. This means it targets whichever script you were just editing. If multiple versioned scripts are found, a warning lists all candidates and shows which was chosen.
 
 **Monorepo Support:**
 `bump-version` automatically resolves the correct README and CHANGELOG for each script:
