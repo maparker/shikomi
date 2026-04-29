@@ -44,6 +44,9 @@ appstoreauth.json
 *.log
 logs/
 
+# --- Internal Planning (not shipped) ---
+docs/workshop-timeline.md
+
 # --- Testing ---
 test_output/
 .pytest_cache/

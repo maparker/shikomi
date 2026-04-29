@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.2.1
+# VERSION:     1.2.3
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
@@ -20,6 +20,8 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.2.3 - 2026-04-29 - Fix in-script changelog insertion using awk instead of BSD-incompatible sed 0,/pattern/
+# 1.2.2 - 2026-04-29 - Add History block support for EA scripts alongside CHANGELOG
 # 1.2.1 - 2026-04-01 - Auto-detect now selects most recently modified script instead of first alphabetically
 # 1.2.0 - 2026-03-20 - Added --commit flag for automatic staging and committing of version bumps
 # 1.1.0 - 2026-01-18 - Added munkipkg build-info support for automatic package version updates
@@ -29,7 +31,7 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.2.1"
+readonly SCRIPT_VERSION="1.2.3"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
@@ -184,9 +186,13 @@ sed -i.bak "s/^# VERSION:[[:space:]]*[0-9][0-9.]*$/# VERSION:     $NEW_VERSION/"
 # Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
 sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
 
-# Update CHANGELOG in script header (add new entry at top - only first occurrence)
+# Update CHANGELOG/History in script header (add new entry after the section header)
+# Uses awk instead of sed: BSD sed on macOS does not support 0,/pattern/ address ranges
 CHANGELOG_LINE="# $NEW_VERSION - $TODAY - $CHANGE_DESC"
-sed -i.bak "0,/^# CHANGELOG$/s//# CHANGELOG\n$CHANGELOG_LINE/" "$SCRIPT_FILE"
+awk -v newline="$CHANGELOG_LINE" '
+    /^# CHANGELOG$/ || /^# History$/ { print; print newline; next }
+    { print }
+' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
 
 # Resolve README and CHANGELOG paths
 # Micro-repo: README.md / CHANGELOG.md

@@ -101,10 +101,10 @@ $(printf '%s\n' "${BLOCK_VARIABLES[@]}")
 
 # --- Logging Setup ---
 LOG_FILE="/var/log/${SCRIPT_NAME}.log"
-function log() { local msg="[\$(date '+%Y-%m-%d %H:%M:%S')] INFO: \$*"; echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
-function log_warn() { local msg="[\$(date '+%Y-%m-%d %H:%M:%S')] WARN: \$*"; echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
-function log_error() { local msg="[\$(date '+%Y-%m-%d %H:%M:%S')] ERROR: \$*"; echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
-function log_success() { local msg="[\$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: \$*"; echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
+function log()         { local msg; msg="[\$(date '+%Y-%m-%d %H:%M:%S')] INFO: \$*";    echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
+function log_warn()    { local msg; msg="[\$(date '+%Y-%m-%d %H:%M:%S')] WARN: \$*";    echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
+function log_error()   { local msg; msg="[\$(date '+%Y-%m-%d %H:%M:%S')] ERROR: \$*";   echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
+function log_success() { local msg; msg="[\$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: \$*"; echo "\$msg" >&2; echo "\$msg" >> "\$LOG_FILE" 2>/dev/null; }
 
 # --- Main Logic ---
 log "Starting \$SCRIPT_NAME v\$SCRIPT_VERSION..."
