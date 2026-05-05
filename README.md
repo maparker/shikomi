@@ -1,4 +1,4 @@
-# Shikomi🔪
+# Shikomi
 
 **Smart macOS Script Generator for MDM Automation**
 
