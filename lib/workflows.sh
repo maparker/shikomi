@@ -137,13 +137,21 @@ jobs:
             exit 1
           fi
 
-          SCRIPT_NAME="${SCRIPT_FILE%.sh}"
+          # Use JAMF_NAME header if present, otherwise derive from filename
+          JAMF_NAME_HEADER=$(grep "^# JAMF_NAME:" "$SCRIPT_FILE" | sed 's/^# JAMF_NAME: //')
+          if [[ -n "$JAMF_NAME_HEADER" ]]; then
+            SCRIPT_NAME="$JAMF_NAME_HEADER"
+            echo "jamf_name_explicit=true" >> $GITHUB_OUTPUT
+          else
+            SCRIPT_NAME="${SCRIPT_FILE%.sh}"
+            echo "jamf_name_explicit=false" >> $GITHUB_OUTPUT
+          fi
           SCRIPT_VERSION=$(grep "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" | sed 's/.*"\(.*\)".*/\1/')
 
           echo "script_file=$SCRIPT_FILE" >> $GITHUB_OUTPUT
           echo "script_name=$SCRIPT_NAME" >> $GITHUB_OUTPUT
           echo "script_version=$SCRIPT_VERSION" >> $GITHUB_OUTPUT
-          echo "Found: $SCRIPT_FILE (v$SCRIPT_VERSION)"
+          echo "Found: $SCRIPT_FILE (v$SCRIPT_VERSION), Jamf name: $SCRIPT_NAME"
 
       - name: Authenticate to Jamf Pro
         id: auth
@@ -187,18 +195,20 @@ jobs:
           JAMF_URL: ${{ secrets.JAMF_URL }}
         run: |
           SCRIPT_NAME="${{ steps.find_script.outputs.script_name }}"
+          JAMF_NAME_EXPLICIT="${{ steps.find_script.outputs.jamf_name_explicit }}"
           TOKEN="${{ steps.auth.outputs.token }}"
 
-          # Search for script by name (try without .sh first, then with .sh)
-          RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}%22" \
+          # Search for script by exact Jamf name
+          RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+            --data-urlencode "filter=name==\"${SCRIPT_NAME}\"" \
             -H "Authorization: Bearer ${TOKEN}" \
             -H "Accept: application/json")
-
           SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
 
-          if [[ -z "$SCRIPT_ID" ]]; then
-            # Retry with .sh extension (in case Jamf Pro has the script stored with .sh)
-            RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}.sh%22" \
+          if [[ -z "$SCRIPT_ID" && "$JAMF_NAME_EXPLICIT" != "true" ]]; then
+            # Retry with .sh extension (only when name was derived from filename)
+            RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+              --data-urlencode "filter=name==\"${SCRIPT_NAME}.sh\"" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Accept: application/json")
             SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
@@ -481,22 +491,32 @@ jobs:
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
 
-            # Extract script name (strip directory path and .sh extension)
-            SCRIPT_NAME="$(basename "${file%.sh}")"
+            # Use JAMF_NAME header if present, otherwise derive from filename
+            JAMF_NAME_HEADER=$(grep "^# JAMF_NAME:" "$file" | sed 's/^# JAMF_NAME: //')
+            if [[ -n "$JAMF_NAME_HEADER" ]]; then
+              SCRIPT_NAME="$JAMF_NAME_HEADER"
+              JAMF_NAME_EXPLICIT=true
+            else
+              SCRIPT_NAME="$(basename "${file%.sh}")"
+              JAMF_NAME_EXPLICIT=false
+            fi
             SCRIPT_VERSION=$(grep "^readonly SCRIPT_VERSION=" "$file" | sed 's/.*"\(.*\)".*/\1/')
 
             echo ""
             echo "=== Deploying: $SCRIPT_NAME v$SCRIPT_VERSION (from $file) ==="
 
-            # Look up in Jamf Pro (try without .sh, then with .sh)
+            # Look up in Jamf Pro by exact name
             SCRIPT_ID=""
-            RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}%22" \
+            RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+              --data-urlencode "filter=name==\"${SCRIPT_NAME}\"" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Accept: application/json")
             SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
 
-            if [[ -z "$SCRIPT_ID" ]]; then
-              RESPONSE=$(curl -s -X GET "${JAMF_URL}/api/v1/scripts?filter=name==%22${SCRIPT_NAME}.sh%22" \
+            if [[ -z "$SCRIPT_ID" && "$JAMF_NAME_EXPLICIT" != "true" ]]; then
+              # Retry with .sh extension (only when name was derived from filename)
+              RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+                --data-urlencode "filter=name==\"${SCRIPT_NAME}.sh\"" \
                 -H "Authorization: Bearer ${TOKEN}" \
                 -H "Accept: application/json")
               SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
