@@ -75,6 +75,7 @@ function apply_standard_var() {
     local var_cmd="${STANDARD_VARS_COMMANDS[$num]}"
     local var_desc="${STANDARD_VARS_DESCRIPTIONS[$num]}"
 
+    STATIC_VARS+=("# shellcheck disable=SC2034  # Scaffolded — remove this comment once variable is used")
     STATIC_VARS+=("${var_name}=\"${var_cmd}\"  # ${var_desc}")
     STATIC_README_ROWS+=("| ${var_name} | Runtime | Dynamic | ${var_desc} |")
     echo "  Added: $var_name"
@@ -122,6 +123,7 @@ function apply_secret_parameter_1password() {
     BLOCK_VARIABLES+=("if command -v op &> /dev/null && op account list &> /dev/null 2>&1; then")
     BLOCK_VARIABLES+=("    ${var_name}=\"\$(op read '${op_reference}' 2>/dev/null || echo \"\${${i}}\")\"")
     BLOCK_VARIABLES+=("else")
+    BLOCK_VARIABLES+=("    # shellcheck disable=SC2034  # Scaffolded — remove this comment once variable is used")
     BLOCK_VARIABLES+=("    ${var_name}=\"\${${i}}\"  # Fallback to Jamf parameter")
     BLOCK_VARIABLES+=("fi")
 

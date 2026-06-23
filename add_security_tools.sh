@@ -105,12 +105,15 @@ repos:
     hooks:
       - id: gitleaks
 
-  # Shell script linting
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
+  # Shell script linting (uses brew-installed shellcheck)
+  - repo: local
     hooks:
       - id: shellcheck
+        name: shellcheck
+        language: system
+        entry: shellcheck
         args: [--severity=warning]
+        types: [shell]
 
   # General checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

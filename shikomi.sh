@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     2.1.0
+# VERSION:     2.1.2
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,8 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 2.1.2 - 2026-06-19 - Clarified shellcheck disable comments to instruct developers to remove them once the variable is used
+# 2.1.1 - 2026-06-19 - Add SC2034 suppression for scaffolded variables and end-of-wizard note
 # 2.1.0 - 2026-03-27 - Removed per-repo bump-version.sh scaffolding; bump-version is now used exclusively as a system-installed command via install.sh
 # 2.0.0 - 2026-03-23 - Non-interactive CLI mode (--auto + flags), Claude Code scaffolding (--claude), plutil-based --params-file
 # 1.9.0 - 2026-03-22 - Extracted monolithic script into modular lib/ structure (6 sourced library files)
@@ -36,7 +38,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="2.1.0"
+readonly SCRIPT_VERSION="2.1.2"
 readonly GENERATOR_NAME="shikomi"
 SHIKOMI_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -777,6 +779,10 @@ fi
 
 echo "Quick Start:"
 echo "  1. Edit your script: ${SCRIPT_NAME}.sh"
+if [[ ${#STATIC_VARS[@]} -gt 0 ]]; then
+    echo "     Note: Scaffolded variables have '# shellcheck disable=SC2034' comments."
+    echo "     Remove them once the variables are used in your script logic."
+fi
 if [[ "$SCRIPT_TEMPLATE" == "ea" ]]; then
     echo "  2. Test output: ./${SCRIPT_NAME}.sh"
     echo "  3. Add to Jamf Pro Extension Attributes"

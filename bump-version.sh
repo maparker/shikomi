@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.2.3
+# VERSION:     1.2.4
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
@@ -20,6 +20,7 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.2.4 - 2026-06-19 - Add --help/-h flag support
 # 1.2.3 - 2026-04-29 - Fix in-script changelog insertion using awk instead of BSD-incompatible sed 0,/pattern/
 # 1.2.2 - 2026-04-29 - Add History block support for EA scripts alongside CHANGELOG
 # 1.2.1 - 2026-04-01 - Auto-detect now selects most recently modified script instead of first alphabetically
@@ -31,11 +32,30 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.2.3"
+readonly SCRIPT_VERSION="1.2.4"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
     echo "bump-version v$SCRIPT_VERSION"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+    echo "Usage: $(basename "$0") [SCRIPT_FILE] <major|minor|patch> \"Change description\" [--commit]"
+    echo ""
+    echo "Auto-detect (targets the most recently modified versioned .sh file):"
+    echo "  $(basename "$0") patch \"Fixed bug in parameter validation\""
+    echo "  $(basename "$0") minor \"Added new feature for user notifications\""
+    echo "  $(basename "$0") major \"Breaking change: Removed deprecated parameters\""
+    echo ""
+    echo "Specify script explicitly:"
+    echo "  $(basename "$0") my_script.sh patch \"Fixed bug\""
+    echo "  $(basename "$0") another_script.sh minor \"Added feature\""
+    echo ""
+    echo "Options:"
+    echo "  --commit    Stage and commit all version changes automatically"
+    echo "  --version   Show version"
+    echo "  --help      Show this help"
     exit 0
 fi
 

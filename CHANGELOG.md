@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.4] - 2026-06-19
+
+### Fixed
+- Add --help/-h flag support
+
+## [2.1.2] - 2026-06-19
+
+### Fixed
+- Clarified shellcheck disable comments to instruct developers to remove them once the variable is used
+
+## [2.1.1] - 2026-06-19
+
+### Fixed
+- Add SC2034 suppression for scaffolded variables and end-of-wizard note
+
 ## [1.2.2] - 2026-04-29
 
 ### Fixed
