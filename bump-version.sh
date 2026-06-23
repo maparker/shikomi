@@ -2,10 +2,11 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.2.4
+# VERSION:     1.3.0
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
+#        ./bump-version.sh <SCRIPT_FILE> init "Initial release" [X.Y.Z] [--commit]
 #
 # OPTIONS:
 #   --commit    Stage and commit all version changes automatically
@@ -20,6 +21,7 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.3.0 - 2026-06-23 - Add init subcommand to inject versioning into existing unversioned scripts
 # 1.2.4 - 2026-06-19 - Add --help/-h flag support
 # 1.2.3 - 2026-04-29 - Fix in-script changelog insertion using awk instead of BSD-incompatible sed 0,/pattern/
 # 1.2.2 - 2026-04-29 - Add History block support for EA scripts alongside CHANGELOG
@@ -32,7 +34,7 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.2.4"
+readonly SCRIPT_VERSION="1.3.0"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
@@ -42,6 +44,7 @@ fi
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     echo "Usage: $(basename "$0") [SCRIPT_FILE] <major|minor|patch> \"Change description\" [--commit]"
+    echo "       $(basename "$0") <SCRIPT_FILE> init \"Initial release\" [X.Y.Z] [--commit]"
     echo ""
     echo "Auto-detect (targets the most recently modified versioned .sh file):"
     echo "  $(basename "$0") patch \"Fixed bug in parameter validation\""
@@ -51,6 +54,15 @@ if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     echo "Specify script explicitly:"
     echo "  $(basename "$0") my_script.sh patch \"Fixed bug\""
     echo "  $(basename "$0") another_script.sh minor \"Added feature\""
+    echo ""
+    echo "Initialize versioning in an existing unversioned script:"
+    echo "  $(basename "$0") my_script.sh init \"Initial release\""
+    echo "  $(basename "$0") my_script.sh init \"Initial release\" 2.1.0"
+    echo ""
+    echo "Prerequisites for init:"
+    echo "  The target script must contain 'set -euo pipefail' (or 'set -uo pipefail'"
+    echo "  for Extension Attributes). It anchors the readonly SCRIPT_VERSION= injection"
+    echo "  and is the standard safe-mode declaration for all versioned scripts."
     echo ""
     echo "Options:"
     echo "  --commit    Stage and commit all version changes automatically"
@@ -74,12 +86,16 @@ for arg in "${args[@]}"; do
 done
 set -- "${clean_args[@]}"
 
+INIT_VERSION="1.0.0"
+TODAY=$(date +%Y-%m-%d)
+
 # Parse arguments - support both modes:
 # Mode 1: ./bump-version.sh <bump_type> "description"  (auto-detect script)
 # Mode 2: ./bump-version.sh <script.sh> <bump_type> "description"  (explicit script)
+# Mode 3: ./bump-version.sh <script.sh> init "description" [X.Y.Z]  (init versioning)
 
 if [[ $# -eq 3 ]]; then
-    # Mode 2: Script explicitly specified
+    # Mode 2/3: Script explicitly specified
     SCRIPT_FILE="$1"
     BUMP_TYPE="$2"
     CHANGE_DESC="$3"
@@ -89,9 +105,47 @@ if [[ $# -eq 3 ]]; then
         exit 1
     fi
 
-    if ! grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" 2>/dev/null; then
+    if [[ "$BUMP_TYPE" == "init" ]]; then
+        if grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" 2>/dev/null; then
+            echo "Error: $SCRIPT_FILE is already versioned"
+            echo "Use: bump-version $SCRIPT_FILE patch|minor|major \"description\""
+            exit 1
+        fi
+    elif ! grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" 2>/dev/null; then
         echo "Error: $SCRIPT_FILE does not appear to be a versioned script"
         echo "Expected to find 'readonly SCRIPT_VERSION=' line"
+        exit 1
+    fi
+
+    echo "Target script: $SCRIPT_FILE (explicitly specified)"
+    echo ""
+
+elif [[ $# -eq 4 ]]; then
+    # Mode 3 with explicit starting version: script.sh init "description" X.Y.Z
+    SCRIPT_FILE="$1"
+    BUMP_TYPE="$2"
+    CHANGE_DESC="$3"
+    INIT_VERSION="$4"
+
+    if [[ "$BUMP_TYPE" != "init" ]]; then
+        echo "Usage: $0 [SCRIPT_FILE] <major|minor|patch> \"Change description\""
+        echo "       $0 <SCRIPT_FILE> init \"Initial release\" [X.Y.Z]"
+        exit 1
+    fi
+
+    if [[ ! -f "$SCRIPT_FILE" ]]; then
+        echo "Error: Script file not found: $SCRIPT_FILE"
+        exit 1
+    fi
+
+    if ! [[ "$INIT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Error: Invalid version format: $INIT_VERSION (expected X.Y.Z)"
+        exit 1
+    fi
+
+    if grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" 2>/dev/null; then
+        echo "Error: $SCRIPT_FILE is already versioned"
+        echo "Use: bump-version $SCRIPT_FILE patch|minor|major \"description\""
         exit 1
     fi
 
@@ -149,6 +203,7 @@ elif [[ $# -eq 2 ]]; then
 
 else
     echo "Usage: $0 [SCRIPT_FILE] <major|minor|patch> \"Change description\""
+    echo "       $0 <SCRIPT_FILE> init \"Initial release\" [X.Y.Z]"
     echo ""
     echo "Auto-detect (targets the most recently modified versioned .sh file):"
     echo "  $0 patch \"Fixed bug in parameter validation\""
@@ -158,7 +213,137 @@ else
     echo "Specify script explicitly:"
     echo "  $0 my_script.sh patch \"Fixed bug\""
     echo "  $0 another_script.sh minor \"Added feature\""
+    echo ""
+    echo "Initialize versioning in an existing unversioned script:"
+    echo "  $0 my_script.sh init \"Initial release\""
+    echo "  $0 my_script.sh init \"Initial release\" 2.1.0"
     exit 1
+fi
+
+# --- Handle init subcommand ---
+if [[ "$BUMP_TYPE" == "init" ]]; then
+    IS_EA=false
+    [[ "$SCRIPT_FILE" == *_ea.sh ]] && IS_EA=true
+
+    if [[ "$IS_EA" == true ]]; then
+        PIPEFAIL_LINE="set -uo pipefail"
+    else
+        PIPEFAIL_LINE="set -euo pipefail"
+    fi
+
+    SUGGEST_PIPEFAIL=false
+    if ! grep -q "pipefail" "$SCRIPT_FILE"; then
+        SUGGEST_PIPEFAIL=true
+    fi
+
+    DIVIDER=$(grep -E "^#{8,}" "$SCRIPT_FILE" 2>/dev/null | head -1 || echo "################################################################################")
+
+    # Inject # VERSION: into header
+    if ! grep -q "^# VERSION:" "$SCRIPT_FILE"; then
+        if grep -q "^# SCRIPT:" "$SCRIPT_FILE"; then
+            awk -v ver="$INIT_VERSION" '
+                /^# SCRIPT:/ && !done { print; printf "# VERSION:     %s\n", ver; done=1; next }
+                { print }
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+        else
+            COMMENT_END=$(awk '
+                NR == 1 { next }
+                /^[[:space:]]*$/ && comment_seen { exit }
+                /^#/ { last=NR; comment_seen=1 }
+                !/^#/ && NF > 0 { exit }
+                END { print last+0 }
+            ' "$SCRIPT_FILE")
+            INSERT_AFTER="${COMMENT_END:-1}"
+            awk -v line="$INSERT_AFTER" -v ver="$INIT_VERSION" '
+                NR == line { print; print "# VERSION:     " ver; next }
+                { print }
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+        fi
+    fi
+
+    # Inject CHANGELOG/History section
+    if ! grep -qE "^# CHANGELOG$|^# History$" "$SCRIPT_FILE"; then
+        SAFEMODELINENO=$(grep -n "^set -" "$SCRIPT_FILE" | grep "pipefail" | head -1 | cut -d: -f1) || true
+        LIMIT="${SAFEMODELINENO:-999999}"
+        LAST_DIVIDER=$(awk -v limit="$LIMIT" 'NR < limit && /^#{8,}/ { last=NR } END { print last+0 }' "$SCRIPT_FILE")
+        ENTRY_FILE=$(mktemp)
+        if [[ "$LAST_DIVIDER" -gt 0 ]]; then
+            # Existing divider acts as the closing line
+            if [[ "$IS_EA" == true ]]; then
+                printf "%s\n#\n# History\n# %s - %s - %s\n#\n" "$DIVIDER" "$INIT_VERSION" "$TODAY" "$CHANGE_DESC" > "$ENTRY_FILE"
+            else
+                printf "%s\n# CHANGELOG\n# %s - %s - %s\n" "$DIVIDER" "$INIT_VERSION" "$TODAY" "$CHANGE_DESC" > "$ENTRY_FILE"
+            fi
+            head -n "$((LAST_DIVIDER - 1))" "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp"
+            cat "$ENTRY_FILE" >> "${SCRIPT_FILE}.tmp"
+            tail -n +"$LAST_DIVIDER" "$SCRIPT_FILE" >> "${SCRIPT_FILE}.tmp"
+        else
+            # No divider — insert self-contained block before set -pipefail or first code line
+            if [[ "$IS_EA" == true ]]; then
+                printf "%s\n#\n# History\n# %s - %s - %s\n#\n%s\n" "$DIVIDER" "$INIT_VERSION" "$TODAY" "$CHANGE_DESC" "$DIVIDER" > "$ENTRY_FILE"
+            else
+                printf "%s\n# CHANGELOG\n# %s - %s - %s\n%s\n" "$DIVIDER" "$INIT_VERSION" "$TODAY" "$CHANGE_DESC" "$DIVIDER" > "$ENTRY_FILE"
+            fi
+            INSERT_BEFORE=$(awk '
+                NR == 1 { next }
+                !/^[[:space:]]*$/ && !/^#/ { print NR; exit }
+                END { print NR+1 }
+            ' "$SCRIPT_FILE")
+            head -n "$((INSERT_BEFORE - 1))" "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp"
+            cat "$ENTRY_FILE" >> "${SCRIPT_FILE}.tmp"
+            tail -n +"$INSERT_BEFORE" "$SCRIPT_FILE" >> "${SCRIPT_FILE}.tmp"
+        fi
+        mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+        rm -f "$ENTRY_FILE"
+    fi
+
+    # Inject readonly SCRIPT_VERSION= — after pipefail if present, else before first code line
+    if ! grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE"; then
+        if [[ "$SUGGEST_PIPEFAIL" == false ]]; then
+            awk -v ver="$INIT_VERSION" '
+                /pipefail/ && !done { print; print "readonly SCRIPT_VERSION=\"" ver "\""; done=1; next }
+                { print }
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+        else
+            FIRST_CODE=$(awk '
+                NR == 1 { next }
+                !/^[[:space:]]*$/ && !/^#/ { print NR; exit }
+                END { print NR+1 }
+            ' "$SCRIPT_FILE")
+            awk -v line="$FIRST_CODE" -v ver="$INIT_VERSION" '
+                NR == line && !done { print "readonly SCRIPT_VERSION=\"" ver "\""; done=1 }
+                { print }
+                END { if (!done) print "readonly SCRIPT_VERSION=\"" ver "\"" }
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+        fi
+    fi
+
+    echo "SUCCESS: Version $INIT_VERSION initialized in $SCRIPT_FILE"
+    echo ""
+
+    # Build next steps
+    STEP=1
+    if [[ "$AUTO_COMMIT" == true ]] && [[ "$SUGGEST_PIPEFAIL" == false ]]; then
+        echo "Staging and committing initialization..."
+        git add "$SCRIPT_FILE"
+        git commit -m "chore: initialize version $INIT_VERSION — $CHANGE_DESC"
+        echo ""
+    fi
+    echo "Next steps:"
+    if [[ "$SUGGEST_PIPEFAIL" == true ]]; then
+        echo "  $STEP. Add '$PIPEFAIL_LINE' before the 'readonly SCRIPT_VERSION=' line (enables safe scripting)"
+        STEP=$((STEP + 1))
+    fi
+    if [[ "$AUTO_COMMIT" == false ]] || [[ "$SUGGEST_PIPEFAIL" == true ]]; then
+        echo "  $STEP. Review: git diff $SCRIPT_FILE"
+        STEP=$((STEP + 1))
+        echo "  $STEP. Commit: git add $SCRIPT_FILE && git commit -m \"chore: initialize version $INIT_VERSION\""
+        STEP=$((STEP + 1))
+    fi
+    echo "  $STEP. Tag:    git tag -a \"v$INIT_VERSION\" -m \"$CHANGE_DESC\""
+    STEP=$((STEP + 1))
+    echo "  $STEP. Push:   git push && git push --tags"
+    exit 0
 fi
 
 # Extract current version from script
@@ -194,7 +379,6 @@ case "$BUMP_TYPE" in
 esac
 
 NEW_VERSION="${major}.${minor}.${patch}"
-TODAY=$(date +%Y-%m-%d)
 
 echo "New version: $NEW_VERSION"
 echo "Change: $CHANGE_DESC"

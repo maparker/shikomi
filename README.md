@@ -241,7 +241,7 @@ shikomi --version  # Show version
 shikomi --help     # Show full usage with all flags
 ```
 
-### 2. `bump-version` (v1.2.1)
+### 2. `bump-version` (v1.3.0)
 Semantic version management utility:
 ```bash
 # Bump version with change description (explicit script)
@@ -255,6 +255,27 @@ bump-version my_script.sh patch "Fixed bug" --commit
 # Auto-detect mode (omit the script name)
 bump-version patch "Fixed bug in user detection"
 ```
+
+**Initializing an Existing Script:**
+Use `init` to add versioning infrastructure to a script that wasn't created by Shikomi:
+
+```bash
+# Add versioning at 1.0.0 (default)
+bump-version my_script.sh init "Initial release"
+
+# Start at a specific version
+bump-version my_script.sh init "Initial release" 2.1.0
+
+# Initialize and commit in one step
+bump-version my_script.sh init "Initial release" --commit
+```
+
+`init` injects three things into the target script:
+1. `# VERSION:     1.0.0` — into the script header (after `# SCRIPT:` if present, otherwise appended to the existing comment block)
+2. A `# CHANGELOG` section (or `# History` for `_ea.sh` scripts) — before the closing header divider
+3. `readonly SCRIPT_VERSION="1.0.0"` — immediately after `set -euo pipefail`
+
+**Prerequisite:** The script must contain `set -euo pipefail` (or `set -uo pipefail` for Extension Attributes) for the `readonly SCRIPT_VERSION=` line to be injected automatically. Without it, `init` will warn and you'll need to add the line manually. Once `init` is done, use the normal `patch`/`minor`/`major` commands for all future version bumps.
 
 **Auto-Detect Behavior:**
 When no script is specified, `bump-version` finds all `.sh` files in the current directory that contain a `SCRIPT_VERSION` constant (excluding `bump-version.sh` itself) and selects the **most recently modified** one. This means it targets whichever script you were just editing. If multiple versioned scripts are found, a warning lists all candidates and shows which was chosen.
