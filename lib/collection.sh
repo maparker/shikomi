@@ -40,7 +40,7 @@ function get_standard_vars_library() {
     STANDARD_VARS_NAMES[12]="PROCESSOR_NAME"
 
     STANDARD_VARS_COMMANDS=()
-    STANDARD_VARS_COMMANDS[1]='$(system_profiler SPHardwareDataType | awk '\''/Serial/ {print $4}'\'')'
+    STANDARD_VARS_COMMANDS[1]='$(ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '\''/IOPlatformSerialNumber/{print $(NF-1)}'\'')'
     STANDARD_VARS_COMMANDS[2]='$(stat -f%Su /dev/console)'
     STANDARD_VARS_COMMANDS[3]='$(scutil --get ComputerName)'
     STANDARD_VARS_COMMANDS[4]='$(sw_vers -productVersion)'
