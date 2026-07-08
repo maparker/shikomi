@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.3.0
+# VERSION:     1.3.1
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
@@ -21,6 +21,7 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.3.1 - 2026-07-08 - Limit auto-commit to pathspec of intended files, not entire index
 # 1.3.0 - 2026-06-23 - Add init subcommand to inject versioning into existing unversioned scripts
 # 1.2.4 - 2026-06-19 - Add --help/-h flag support
 # 1.2.3 - 2026-04-29 - Fix in-script changelog insertion using awk instead of BSD-incompatible sed 0,/pattern/
@@ -34,7 +35,7 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.3.0"
+readonly SCRIPT_VERSION="1.3.1"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then

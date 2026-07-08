@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.3] - 2026-07-08
+
+### Fixed
+- Limit auto-commit to pathspec of intended files, not entire index
+
+## [1.3.2] - 2026-07-08
+
+### Fixed
+- Limit auto-commit to pathspec of intended files, not entire index
+
+## [1.3.1] - 2026-07-08
+
+### Fixed
+- Limit auto-commit to pathspec of intended files, not entire index
+
+## [2.1.3] - 2026-07-08
+
+### Fixed
+- Updated banner text and print_shikomi_banner helper
+
 ## [1.2.4] - 2026-06-19
 
 ### Fixed
