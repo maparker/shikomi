@@ -326,7 +326,7 @@ if [[ "$BUMP_TYPE" == "init" ]]; then
     if [[ "$AUTO_COMMIT" == true ]] && [[ "$SUGGEST_PIPEFAIL" == false ]]; then
         echo "Staging and committing initialization..."
         git add "$SCRIPT_FILE"
-        git commit -m "chore: initialize version $INIT_VERSION — $CHANGE_DESC"
+        git commit -m "chore: initialize version $INIT_VERSION — $CHANGE_DESC" -- "$SCRIPT_FILE"
         echo ""
     fi
     echo "Next steps:"
@@ -496,7 +496,7 @@ if [[ "$AUTO_COMMIT" == true ]]; then
     # Stage only the files bump-version touched (ignore other uncommitted changes)
     echo "Staging and committing version bump..."
     git add "${BUMP_FILES[@]}"
-    git commit -m "chore: bump version to $NEW_VERSION — $CHANGE_DESC"
+    git commit -m "chore: bump version to $NEW_VERSION — $CHANGE_DESC" -- "${BUMP_FILES[@]}"
 
     echo ""
     echo "Next steps:"
