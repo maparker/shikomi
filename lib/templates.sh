@@ -63,7 +63,7 @@ function generate_regular_script() {
 # AUTHOR:      $(git config user.name || echo "First Last")
 # EMAIL:       $(git config user.email || echo "first.last@example.com")
 # DATE:        ${INITIAL_DATE}
-# Description: Fancy script that makes something cool happen on a Mac.
+# Description: One-line description of what this script does
 #
 ################################################################################
 # PARAMETERS:

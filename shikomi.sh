@@ -97,6 +97,14 @@ show_usage() {
     echo "  $(basename "$0") deploy_agent --auto --params-file params.json --workflow y"
 }
 
+print_shikomi_banner() {
+    echo "================================================"
+    echo "                    Shikomi                     "
+    echo "             macOS Script Generator             "
+    echo "  Eight parts preparation, two parts execution  "
+    echo "================================================"
+}
+
 # Pre-scan for --version / --help before requiring SCRIPT_NAME
 case "${1:-}" in
     --version|-v) echo "Shikomi v$SCRIPT_VERSION"; exit 0 ;;
@@ -193,10 +201,8 @@ IS_MONOREPO=false
 if git rev-parse --is-inside-work-tree &> /dev/null; then
     IS_MONOREPO=true
     REPO_ROOT=$(git rev-parse --show-toplevel)
-    echo "=============================================="
-    echo "   macOS Script Generator (Monorepo Mode)    "
-    echo "=============================================="
-    echo "Detected existing Git Repository: $(basename "$REPO_ROOT")"
+    print_shikomi_banner
+    echo "Mode: Monorepo (existing repo: $(basename "$REPO_ROOT"))"
 
     # In monorepo, we write to current directory
     PROJECT_DIR="$PWD"
@@ -231,10 +237,8 @@ if git rev-parse --is-inside-work-tree &> /dev/null; then
         fi
     fi
 else
-    echo "=============================================="
-    echo "  macOS Script Generator (New Project Mode)  "
-    echo "=============================================="
-    echo "No existing Git repo detected. Creating new project."
+    print_shikomi_banner
+    echo "Mode: New Project (no existing Git repo detected)"
 
     # In new project, we create a folder
     SCRIPTS_DIR="${JAMF_SCRIPTS_DIR:-$PWD}"
