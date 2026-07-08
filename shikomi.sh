@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT:      shikomi.sh
-# VERSION:     2.1.2
+# VERSION:     2.1.3
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Smart macOS/MDM Script Generator
@@ -12,6 +12,7 @@
 #              - Initializes Git + Pre-Commit Hooks + GitHub integration
 ################################################################################
 # CHANGELOG
+# 2.1.3 - 2026-07-08 - Updated banner text and print_shikomi_banner helper
 # 2.1.2 - 2026-06-19 - Clarified shellcheck disable comments to instruct developers to remove them once the variable is used
 # 2.1.1 - 2026-06-19 - Add SC2034 suppression for scaffolded variables and end-of-wizard note
 # 2.1.0 - 2026-03-27 - Removed per-repo bump-version.sh scaffolding; bump-version is now used exclusively as a system-installed command via install.sh
@@ -38,7 +39,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="2.1.2"
+readonly SCRIPT_VERSION="2.1.3"
 readonly GENERATOR_NAME="shikomi"
 SHIKOMI_DIR="$(cd "$(dirname "$0")" && pwd)"
 
