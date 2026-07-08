@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.3.1
+# VERSION:     1.3.2
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
@@ -21,6 +21,7 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.3.2 - 2026-07-08 - Fix exec bit loss in tmp-file rewrites of SCRIPT_FILE (regression from v1.2.3's sed→awk swap)
 # 1.3.1 - 2026-07-08 - Limit auto-commit to pathspec of intended files, not entire index
 # 1.3.0 - 2026-06-23 - Add init subcommand to inject versioning into existing unversioned scripts
 # 1.2.4 - 2026-06-19 - Add --help/-h flag support
@@ -35,7 +36,7 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.3.1"
+readonly SCRIPT_VERSION="1.3.2"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
@@ -245,7 +246,7 @@ if [[ "$BUMP_TYPE" == "init" ]]; then
             awk -v ver="$INIT_VERSION" '
                 /^# SCRIPT:/ && !done { print; printf "# VERSION:     %s\n", ver; done=1; next }
                 { print }
-            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && cat "${SCRIPT_FILE}.tmp" > "$SCRIPT_FILE" && rm -f "${SCRIPT_FILE}.tmp"
         else
             COMMENT_END=$(awk '
                 NR == 1 { next }
@@ -258,7 +259,7 @@ if [[ "$BUMP_TYPE" == "init" ]]; then
             awk -v line="$INSERT_AFTER" -v ver="$INIT_VERSION" '
                 NR == line { print; print "# VERSION:     " ver; next }
                 { print }
-            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && cat "${SCRIPT_FILE}.tmp" > "$SCRIPT_FILE" && rm -f "${SCRIPT_FILE}.tmp"
         fi
     fi
 
@@ -294,7 +295,7 @@ if [[ "$BUMP_TYPE" == "init" ]]; then
             cat "$ENTRY_FILE" >> "${SCRIPT_FILE}.tmp"
             tail -n +"$INSERT_BEFORE" "$SCRIPT_FILE" >> "${SCRIPT_FILE}.tmp"
         fi
-        mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+        cat "${SCRIPT_FILE}.tmp" > "$SCRIPT_FILE" && rm -f "${SCRIPT_FILE}.tmp"
         rm -f "$ENTRY_FILE"
     fi
 
@@ -304,7 +305,7 @@ if [[ "$BUMP_TYPE" == "init" ]]; then
             awk -v ver="$INIT_VERSION" '
                 /pipefail/ && !done { print; print "readonly SCRIPT_VERSION=\"" ver "\""; done=1; next }
                 { print }
-            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && cat "${SCRIPT_FILE}.tmp" > "$SCRIPT_FILE" && rm -f "${SCRIPT_FILE}.tmp"
         else
             FIRST_CODE=$(awk '
                 NR == 1 { next }
@@ -315,7 +316,7 @@ if [[ "$BUMP_TYPE" == "init" ]]; then
                 NR == line && !done { print "readonly SCRIPT_VERSION=\"" ver "\""; done=1 }
                 { print }
                 END { if (!done) print "readonly SCRIPT_VERSION=\"" ver "\"" }
-            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+            ' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && cat "${SCRIPT_FILE}.tmp" > "$SCRIPT_FILE" && rm -f "${SCRIPT_FILE}.tmp"
         fi
     fi
 
@@ -397,7 +398,7 @@ CHANGELOG_LINE="# $NEW_VERSION - $TODAY - $CHANGE_DESC"
 awk -v newline="$CHANGELOG_LINE" '
     /^# CHANGELOG$/ || /^# History$/ { print; print newline; next }
     { print }
-' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && mv "${SCRIPT_FILE}.tmp" "$SCRIPT_FILE"
+' "$SCRIPT_FILE" > "${SCRIPT_FILE}.tmp" && cat "${SCRIPT_FILE}.tmp" > "$SCRIPT_FILE" && rm -f "${SCRIPT_FILE}.tmp"
 
 # Resolve README and CHANGELOG paths
 # Micro-repo: README.md / CHANGELOG.md

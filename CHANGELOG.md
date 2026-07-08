@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2026-07-08
+
+### Fixed
+- Fix exec bit loss in tmp-file rewrites of SCRIPT_FILE (regression from v1.2.3's sed→awk swap)
+
 ## [1.3.1] - 2026-07-08
 
 ### Fixed
