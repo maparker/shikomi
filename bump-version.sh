@@ -390,7 +390,7 @@ echo "Change: $CHANGE_DESC"
 sed -i.bak "s/^# VERSION:[[:space:]]*[0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
 
 # Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
-sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
+sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
 
 # Update CHANGELOG/History in script header (add new entry after the section header)
 # Uses awk instead of sed: BSD sed on macOS does not support 0,/pattern/ address ranges
