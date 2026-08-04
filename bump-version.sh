@@ -2,7 +2,7 @@
 
 ################################################################################
 # SCRIPT: bump-version.sh
-# VERSION:     1.3.2
+# VERSION:     1.4.0
 # DESCRIPTION: Semantic version bumping utility for macOS/MDM scripts
 #
 # USAGE: ./bump-version.sh [SCRIPT_FILE] <major|minor|patch> "Change description" [--commit]
@@ -21,6 +21,7 @@
 #     ./bump-version.sh my_script.sh minor "Added new feature" --commit
 ################################################################################
 # CHANGELOG
+# 1.4.0 - 2026-07-30 - Recognize zsh-style scriptVersion= declarations (with or without readonly) alongside bash readonly SCRIPT_VERSION=; clarify that init falls back to header-anchor when no pipefail line exists; disambiguate CHANGELOG heading with script name when a version number collides with an existing entry (fixes duplicate ## [X.Y.Z] headings when multiple versioned scripts share one CHANGELOG.md)
 # 1.3.2 - 2026-07-08 - Fix exec bit loss in tmp-file rewrites of SCRIPT_FILE (regression from v1.2.3's sed→awk swap)
 # 1.3.1 - 2026-07-08 - Limit auto-commit to pathspec of intended files, not entire index
 # 1.3.0 - 2026-06-23 - Add init subcommand to inject versioning into existing unversioned scripts
@@ -36,7 +37,7 @@
 
 set -euo pipefail
 
-readonly SCRIPT_VERSION="1.3.2"
+readonly SCRIPT_VERSION="1.4.0"
 
 # --- 0. Version/Help Check ---
 if [[ "${1:-}" == "--version" ]] || [[ "${1:-}" == "-v" ]]; then
@@ -61,10 +62,11 @@ if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     echo "  $(basename "$0") my_script.sh init \"Initial release\""
     echo "  $(basename "$0") my_script.sh init \"Initial release\" 2.1.0"
     echo ""
-    echo "Prerequisites for init:"
-    echo "  The target script must contain 'set -euo pipefail' (or 'set -uo pipefail'"
-    echo "  for Extension Attributes). It anchors the readonly SCRIPT_VERSION= injection"
-    echo "  and is the standard safe-mode declaration for all versioned scripts."
+    echo "Notes on init:"
+    echo "  If the target contains 'set -euo pipefail' (or 'set -uo pipefail' for"
+    echo "  Extension Attributes), that line anchors the injected version declaration."
+    echo "  Otherwise it's injected after the leading header comment block instead —"
+    echo "  init does not require or add a pipefail line itself."
     echo ""
     echo "Options:"
     echo "  --commit    Stage and commit all version changes automatically"
@@ -91,6 +93,32 @@ set -- "${clean_args[@]}"
 INIT_VERSION="1.0.0"
 TODAY=$(date +%Y-%m-%d)
 
+# Recognized version-declaration conventions, checked in priority order.
+# Scripts scaffolded by Shikomi use 'readonly SCRIPT_VERSION='; scripts that predate
+# this tool or follow a different shell's convention (e.g. zsh scripts often use a
+# non-readonly camelCase variable) may use one of the others.
+VERSION_VAR_CANDIDATES=(
+    'readonly SCRIPT_VERSION='
+    'SCRIPT_VERSION='
+    'readonly scriptVersion='
+    'scriptVersion='
+)
+
+# Detect which version-declaration convention a script uses.
+# On match, sets VERSION_DECL_PREFIX (e.g. "readonly SCRIPT_VERSION=") and returns 0.
+# On no match, returns 1 and leaves VERSION_DECL_PREFIX unset.
+function detect_version_decl() {
+    local file="$1"
+    local candidate
+    for candidate in "${VERSION_VAR_CANDIDATES[@]}"; do
+        if grep -q "^${candidate}\"" "$file" 2>/dev/null; then
+            VERSION_DECL_PREFIX="$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Parse arguments - support both modes:
 # Mode 1: ./bump-version.sh <bump_type> "description"  (auto-detect script)
 # Mode 2: ./bump-version.sh <script.sh> <bump_type> "description"  (explicit script)
@@ -108,14 +136,17 @@ if [[ $# -eq 3 ]]; then
     fi
 
     if [[ "$BUMP_TYPE" == "init" ]]; then
-        if grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" 2>/dev/null; then
-            echo "Error: $SCRIPT_FILE is already versioned"
+        if detect_version_decl "$SCRIPT_FILE"; then
+            echo "Error: $SCRIPT_FILE is already versioned (found '${VERSION_DECL_PREFIX}\"...\"')"
             echo "Use: bump-version $SCRIPT_FILE patch|minor|major \"description\""
             exit 1
         fi
-    elif ! grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" 2>/dev/null; then
+    elif ! detect_version_decl "$SCRIPT_FILE"; then
         echo "Error: $SCRIPT_FILE does not appear to be a versioned script"
-        echo "Expected to find 'readonly SCRIPT_VERSION=' line"
+        echo "Expected one of these declarations:"
+        for candidate in "${VERSION_VAR_CANDIDATES[@]}"; do
+            echo "  ${candidate}\"X.Y.Z\""
+        done
         exit 1
     fi
 
@@ -145,8 +176,8 @@ elif [[ $# -eq 4 ]]; then
         exit 1
     fi
 
-    if grep -q "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" 2>/dev/null; then
-        echo "Error: $SCRIPT_FILE is already versioned"
+    if detect_version_decl "$SCRIPT_FILE"; then
+        echo "Error: $SCRIPT_FILE is already versioned (found '${VERSION_DECL_PREFIX}\"...\"')"
         echo "Use: bump-version $SCRIPT_FILE patch|minor|major \"description\""
         exit 1
     fi
@@ -168,7 +199,7 @@ elif [[ $# -eq 2 ]]; then
     CANDIDATES=()
     shopt -s nullglob
     for file in *.sh; do
-        if [[ "$file" != "bump-version.sh" ]] && grep -q "^readonly SCRIPT_VERSION=" "$file" 2>/dev/null; then
+        if [[ "$file" != "bump-version.sh" ]] && detect_version_decl "$file"; then
             CANDIDATES+=("$file")
             CANDIDATE_COUNT=$((CANDIDATE_COUNT + 1))
             # Get modification time as epoch seconds (macOS stat)
@@ -196,7 +227,10 @@ elif [[ $# -eq 2 ]]; then
 
     if [[ -z "$SCRIPT_FILE" ]]; then
         echo "Error: No versioned script found in current directory"
-        echo "Expected to find a .sh file with 'readonly SCRIPT_VERSION=' line"
+        echo "Expected a .sh file with one of these declarations:"
+        for candidate in "${VERSION_VAR_CANDIDATES[@]}"; do
+            echo "  ${candidate}\"X.Y.Z\""
+        done
         exit 1
     fi
 
@@ -348,8 +382,13 @@ if [[ "$BUMP_TYPE" == "init" ]]; then
     exit 0
 fi
 
-# Extract current version from script
-CURRENT_VERSION=$(grep "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" | sed 's/.*"\(.*\)".*/\1/')
+# Extract current version from script (re-detect: auto-detect mode may have left
+# VERSION_DECL_PREFIX pointing at the last-scanned candidate, not the chosen SCRIPT_FILE)
+if ! detect_version_decl "$SCRIPT_FILE"; then
+    echo "Error: Could not find a recognized version declaration in $SCRIPT_FILE"
+    exit 1
+fi
+CURRENT_VERSION=$(grep "^${VERSION_DECL_PREFIX}\"" "$SCRIPT_FILE" | sed 's/.*"\(.*\)".*/\1/')
 if [[ -z "$CURRENT_VERSION" ]]; then
     echo "Error: Could not find SCRIPT_VERSION in $SCRIPT_FILE"
     exit 1
@@ -389,8 +428,8 @@ echo "Change: $CHANGE_DESC"
 # Match VERSION: followed by any amount of whitespace and a version number, preserving alignment
 sed -i.bak "s/^# VERSION:[[:space:]]*[0-9][0-9.]*$/# VERSION:     $NEW_VERSION/" "$SCRIPT_FILE"
 
-# Update SCRIPT_VERSION constant (only lines with actual version numbers, not variables)
-sed -i.bak "s/^readonly SCRIPT_VERSION=\"[0-9][0-9.]*\"$/readonly SCRIPT_VERSION=\"$NEW_VERSION\"/" "$SCRIPT_FILE"
+# Update version-declaration constant (only lines with actual version numbers, not variables)
+sed -i.bak "s/^${VERSION_DECL_PREFIX}\"[0-9][0-9.]*\"\$/${VERSION_DECL_PREFIX}\"$NEW_VERSION\"/" "$SCRIPT_FILE"
 
 # Update CHANGELOG/History in script header (add new entry after the section header)
 # Uses awk instead of sed: BSD sed on macOS does not support 0,/pattern/ address ranges
@@ -432,7 +471,16 @@ fi
 if [[ -n "$CHANGELOG_FILE" ]]; then
     # Build the new entry as a temp file (avoids sed/awk newline portability issues)
     ENTRY_FILE=$(mktemp)
-    echo "## [$NEW_VERSION] - $TODAY" > "$ENTRY_FILE"
+    HEADING="## [$NEW_VERSION] - $TODAY"
+    if grep -qF "## [$NEW_VERSION]" "$CHANGELOG_FILE"; then
+        # This version number already appears in this CHANGELOG — likely a different
+        # script's independent version counter landed on the same number (this file
+        # may be shared across multiple versioned scripts). Disambiguate instead of
+        # writing an ambiguous duplicate heading.
+        echo "Note: [$NEW_VERSION] already appears in $CHANGELOG_FILE — disambiguating heading with script name"
+        HEADING="## [$NEW_VERSION] - $TODAY ($SCRIPT_FILE)"
+    fi
+    echo "$HEADING" > "$ENTRY_FILE"
     echo "" >> "$ENTRY_FILE"
     case "$BUMP_TYPE" in
         major) echo "### Changed" >> "$ENTRY_FILE" ;;

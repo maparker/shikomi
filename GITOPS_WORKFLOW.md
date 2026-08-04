@@ -386,7 +386,7 @@ Then push, open a PR, and the cycle repeats.
 │                     JAMF PRO                                │
 │                                                             │
 │  8. deploy-to-jamf.yml    Authenticates via OAuth           │
-│                           Creates or updates script         │
+│                           Creates or updates script/EA      │
 │                           Posts deployment summary           │
 │                                                             │
 │  ✓ Script in Jamf Pro matches your source of truth          │

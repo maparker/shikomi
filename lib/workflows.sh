@@ -137,6 +137,10 @@ jobs:
             exit 1
           fi
 
+          IS_EA=false
+          [[ "$SCRIPT_FILE" == *_ea.sh ]] && IS_EA=true
+          echo "is_ea=$IS_EA" >> $GITHUB_OUTPUT
+
           # Use JAMF_NAME header if present, otherwise derive from filename
           JAMF_NAME_HEADER=$(grep "^# JAMF_NAME:" "$SCRIPT_FILE" | sed 's/^# JAMF_NAME: //')
           if [[ -n "$JAMF_NAME_HEADER" ]]; then
@@ -147,6 +151,12 @@ jobs:
             echo "jamf_name_explicit=false" >> $GITHUB_OUTPUT
           fi
           SCRIPT_VERSION=$(grep "^readonly SCRIPT_VERSION=" "$SCRIPT_FILE" | sed 's/.*"\(.*\)".*/\1/')
+
+          # EA-only metadata (no-op grep on regular scripts, falls back to defaults)
+          JAMF_DATA_TYPE_HEADER=$(grep "^# JAMF_DATA_TYPE:" "$SCRIPT_FILE" | sed 's/^# JAMF_DATA_TYPE: //')
+          echo "data_type=${JAMF_DATA_TYPE_HEADER:-STRING}" >> $GITHUB_OUTPUT
+          JAMF_DISPLAY_CATEGORY_HEADER=$(grep "^# JAMF_DISPLAY_CATEGORY:" "$SCRIPT_FILE" | sed 's/^# JAMF_DISPLAY_CATEGORY: //')
+          echo "display_category=${JAMF_DISPLAY_CATEGORY_HEADER:-EXTENSION_ATTRIBUTES}" >> $GITHUB_OUTPUT
 
           echo "script_file=$SCRIPT_FILE" >> $GITHUB_OUTPUT
           echo "script_name=$SCRIPT_NAME" >> $GITHUB_OUTPUT
@@ -194,32 +204,40 @@ jobs:
         env:
           JAMF_URL: ${{ secrets.JAMF_URL }}
         run: |
+          IS_EA="${{ steps.find_script.outputs.is_ea }}"
           SCRIPT_NAME="${{ steps.find_script.outputs.script_name }}"
           JAMF_NAME_EXPLICIT="${{ steps.find_script.outputs.jamf_name_explicit }}"
           TOKEN="${{ steps.auth.outputs.token }}"
 
-          # Search for script by exact Jamf name
-          RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+          if [[ "$IS_EA" == "true" ]]; then
+            ENDPOINT="${JAMF_URL}/api/v1/computer-extension-attributes"
+          else
+            ENDPOINT="${JAMF_URL}/api/v1/scripts"
+          fi
+
+          # Search for object by exact Jamf name
+          RESPONSE=$(curl -s -G "$ENDPOINT" \
             --data-urlencode "filter=name==\"${SCRIPT_NAME}\"" \
             -H "Authorization: Bearer ${TOKEN}" \
             -H "Accept: application/json")
-          SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+          OBJECT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
 
-          if [[ -z "$SCRIPT_ID" && "$JAMF_NAME_EXPLICIT" != "true" ]]; then
-            # Retry with .sh extension (only when name was derived from filename)
-            RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+          if [[ -z "$OBJECT_ID" && "$JAMF_NAME_EXPLICIT" != "true" && "$IS_EA" != "true" ]]; then
+            # Retry with .sh extension (Scripts-only back-compat; EA filenames
+            # always end _ea.sh so there's no equivalent naming ambiguity)
+            RESPONSE=$(curl -s -G "$ENDPOINT" \
               --data-urlencode "filter=name==\"${SCRIPT_NAME}.sh\"" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Accept: application/json")
-            SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+            OBJECT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
           fi
 
-          if [[ -n "$SCRIPT_ID" ]]; then
-            echo "Found existing script: $SCRIPT_NAME (ID: $SCRIPT_ID)"
+          if [[ -n "$OBJECT_ID" ]]; then
+            echo "Found existing object: $SCRIPT_NAME (ID: $OBJECT_ID)"
             echo "action=update" >> $GITHUB_OUTPUT
-            echo "script_id=$SCRIPT_ID" >> $GITHUB_OUTPUT
+            echo "object_id=$OBJECT_ID" >> $GITHUB_OUTPUT
           else
-            echo "Script not found in Jamf Pro, will create new"
+            echo "Object not found in Jamf Pro, will create new"
             echo "action=create" >> $GITHUB_OUTPUT
           fi
 
@@ -228,35 +246,58 @@ jobs:
           JAMF_URL: ${{ secrets.JAMF_URL }}
         run: |
           TOKEN="${{ steps.auth.outputs.token }}"
+          IS_EA="${{ steps.find_script.outputs.is_ea }}"
           SCRIPT_NAME="${{ steps.find_script.outputs.script_name }}"
           SCRIPT_VERSION="${{ steps.find_script.outputs.script_version }}"
           ACTION="${{ steps.lookup.outputs.action }}"
-          SCRIPT_ID="${{ steps.lookup.outputs.script_id }}"
+          OBJECT_ID="${{ steps.lookup.outputs.object_id }}"
 
           # Build JSON payload
-          PAYLOAD=$(jq -n \
-            --arg name "$SCRIPT_NAME" \
-            --arg info "Deployed from GitHub (v${SCRIPT_VERSION})" \
-            --arg contents "$(cat /tmp/script_payload.txt)" \
-            '{
-              name: $name,
-              info: $info,
-              scriptContents: $contents,
-              priority: "AFTER",
-              categoryId: "-1"
-            }')
+          if [[ "$IS_EA" == "true" ]]; then
+            ENDPOINT="${JAMF_URL}/api/v1/computer-extension-attributes"
+            DATA_TYPE="${{ steps.find_script.outputs.data_type }}"
+            DISPLAY_CATEGORY="${{ steps.find_script.outputs.display_category }}"
+            PAYLOAD=$(jq -n \
+              --arg name "$SCRIPT_NAME" \
+              --arg description "Deployed from GitHub (v${SCRIPT_VERSION})" \
+              --arg dataType "$DATA_TYPE" \
+              --arg inventoryDisplayType "$DISPLAY_CATEGORY" \
+              --arg contents "$(cat /tmp/script_payload.txt)" \
+              '{
+                name: $name,
+                description: $description,
+                dataType: $dataType,
+                inputType: "SCRIPT",
+                inventoryDisplayType: $inventoryDisplayType,
+                scriptContents: $contents,
+                enabled: true
+              }')
+          else
+            ENDPOINT="${JAMF_URL}/api/v1/scripts"
+            PAYLOAD=$(jq -n \
+              --arg name "$SCRIPT_NAME" \
+              --arg info "Deployed from GitHub (v${SCRIPT_VERSION})" \
+              --arg contents "$(cat /tmp/script_payload.txt)" \
+              '{
+                name: $name,
+                info: $info,
+                scriptContents: $contents,
+                priority: "AFTER",
+                categoryId: "-1"
+              }')
+          fi
 
           if [[ "$ACTION" == "update" ]]; then
-            echo "Updating script $SCRIPT_NAME (ID: $SCRIPT_ID)..."
+            echo "Updating $SCRIPT_NAME (ID: $OBJECT_ID)..."
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-              -X PUT "${JAMF_URL}/api/v1/scripts/${SCRIPT_ID}" \
+              -X PUT "${ENDPOINT}/${OBJECT_ID}" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD")
           else
-            echo "Creating script $SCRIPT_NAME..."
+            echo "Creating $SCRIPT_NAME..."
             HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-              -X POST "${JAMF_URL}/api/v1/scripts" \
+              -X POST "${ENDPOINT}" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD")
@@ -276,6 +317,7 @@ jobs:
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Script:** ${{ steps.find_script.outputs.script_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** $([ "${{ steps.find_script.outputs.is_ea }}" == "true" ] && echo "Extension Attribute" || echo "Script")" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.find_script.outputs.script_version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Action:** ${{ steps.lookup.outputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
@@ -491,6 +533,10 @@ jobs:
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
 
+            IS_EA=false
+            [[ "$file" == *_ea.sh ]] && IS_EA=true
+            TYPE=$([ "$IS_EA" == true ] && echo "EA" || echo "Script")
+
             # Use JAMF_NAME header if present, otherwise derive from filename
             JAMF_NAME_HEADER=$(grep "^# JAMF_NAME:" "$file" | sed 's/^# JAMF_NAME: //')
             if [[ -n "$JAMF_NAME_HEADER" ]]; then
@@ -502,53 +548,84 @@ jobs:
             fi
             SCRIPT_VERSION=$(grep "^readonly SCRIPT_VERSION=" "$file" | sed 's/.*"\(.*\)".*/\1/')
 
+            # EA-only metadata (no-op grep on regular scripts, falls back to defaults)
+            JAMF_DATA_TYPE_HEADER=$(grep "^# JAMF_DATA_TYPE:" "$file" | sed 's/^# JAMF_DATA_TYPE: //')
+            DATA_TYPE="${JAMF_DATA_TYPE_HEADER:-STRING}"
+            JAMF_DISPLAY_CATEGORY_HEADER=$(grep "^# JAMF_DISPLAY_CATEGORY:" "$file" | sed 's/^# JAMF_DISPLAY_CATEGORY: //')
+            DISPLAY_CATEGORY="${JAMF_DISPLAY_CATEGORY_HEADER:-EXTENSION_ATTRIBUTES}"
+
             echo ""
-            echo "=== Deploying: $SCRIPT_NAME v$SCRIPT_VERSION (from $file) ==="
+            echo "=== Deploying: $SCRIPT_NAME v$SCRIPT_VERSION ($TYPE, from $file) ==="
+
+            if [[ "$IS_EA" == true ]]; then
+              ENDPOINT="${JAMF_URL}/api/v1/computer-extension-attributes"
+            else
+              ENDPOINT="${JAMF_URL}/api/v1/scripts"
+            fi
 
             # Look up in Jamf Pro by exact name
-            SCRIPT_ID=""
-            RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+            OBJECT_ID=""
+            RESPONSE=$(curl -s -G "$ENDPOINT" \
               --data-urlencode "filter=name==\"${SCRIPT_NAME}\"" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Accept: application/json")
-            SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+            OBJECT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
 
-            if [[ -z "$SCRIPT_ID" && "$JAMF_NAME_EXPLICIT" != "true" ]]; then
-              # Retry with .sh extension (only when name was derived from filename)
-              RESPONSE=$(curl -s -G "${JAMF_URL}/api/v1/scripts" \
+            if [[ -z "$OBJECT_ID" && "$JAMF_NAME_EXPLICIT" != "true" && "$IS_EA" != true ]]; then
+              # Retry with .sh extension (Scripts-only back-compat; EA filenames
+              # always end _ea.sh so there's no equivalent naming ambiguity)
+              RESPONSE=$(curl -s -G "$ENDPOINT" \
                 --data-urlencode "filter=name==\"${SCRIPT_NAME}.sh\"" \
                 -H "Authorization: Bearer ${TOKEN}" \
                 -H "Accept: application/json")
-              SCRIPT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
+              OBJECT_ID=$(echo "$RESPONSE" | jq -r '.results[0].id // empty')
             fi
 
             # Build JSON payload
-            PAYLOAD=$(jq -n \
-              --arg name "$SCRIPT_NAME" \
-              --arg info "Deployed from GitHub (v${SCRIPT_VERSION})" \
-              --arg contents "$(cat "$file")" \
-              '{
-                name: $name,
-                info: $info,
-                scriptContents: $contents,
-                priority: "AFTER",
-                categoryId: "-1"
-              }')
+            if [[ "$IS_EA" == true ]]; then
+              PAYLOAD=$(jq -n \
+                --arg name "$SCRIPT_NAME" \
+                --arg description "Deployed from GitHub (v${SCRIPT_VERSION})" \
+                --arg dataType "$DATA_TYPE" \
+                --arg inventoryDisplayType "$DISPLAY_CATEGORY" \
+                --arg contents "$(cat "$file")" \
+                '{
+                  name: $name,
+                  description: $description,
+                  dataType: $dataType,
+                  inputType: "SCRIPT",
+                  inventoryDisplayType: $inventoryDisplayType,
+                  scriptContents: $contents,
+                  enabled: true
+                }')
+            else
+              PAYLOAD=$(jq -n \
+                --arg name "$SCRIPT_NAME" \
+                --arg info "Deployed from GitHub (v${SCRIPT_VERSION})" \
+                --arg contents "$(cat "$file")" \
+                '{
+                  name: $name,
+                  info: $info,
+                  scriptContents: $contents,
+                  priority: "AFTER",
+                  categoryId: "-1"
+                }')
+            fi
 
             # Create or update
-            if [[ -n "$SCRIPT_ID" ]]; then
+            if [[ -n "$OBJECT_ID" ]]; then
               ACTION="update"
-              echo "  Found existing script (ID: $SCRIPT_ID), updating..."
+              echo "  Found existing $TYPE (ID: $OBJECT_ID), updating..."
               HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-                -X PUT "${JAMF_URL}/api/v1/scripts/${SCRIPT_ID}" \
+                -X PUT "${ENDPOINT}/${OBJECT_ID}" \
                 -H "Authorization: Bearer ${TOKEN}" \
                 -H "Content-Type: application/json" \
                 -d "$PAYLOAD")
             else
               ACTION="create"
-              echo "  Script not found in Jamf Pro, creating..."
+              echo "  $TYPE not found in Jamf Pro, creating..."
               HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-                -X POST "${JAMF_URL}/api/v1/scripts" \
+                -X POST "${ENDPOINT}" \
                 -H "Authorization: Bearer ${TOKEN}" \
                 -H "Content-Type: application/json" \
                 -d "$PAYLOAD")
@@ -557,12 +634,12 @@ jobs:
             if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
               echo "  SUCCESS: $SCRIPT_NAME v${SCRIPT_VERSION} deployed (HTTP $HTTP_CODE)"
               SUCCESS=$((SUCCESS + 1))
-              SUMMARY="${SUMMARY}| ${SCRIPT_NAME} | ${SCRIPT_VERSION} | ${ACTION} | ${file} | success |\n"
+              SUMMARY="${SUMMARY}| ${SCRIPT_NAME} | ${SCRIPT_VERSION} | ${TYPE} | ${ACTION} | ${file} | success |\n"
             else
               echo "  FAILED: $SCRIPT_NAME deployment failed (HTTP $HTTP_CODE)"
               cat /tmp/response.json | jq . 2>/dev/null || cat /tmp/response.json
               FAILED=$((FAILED + 1))
-              SUMMARY="${SUMMARY}| ${SCRIPT_NAME} | ${SCRIPT_VERSION} | ${ACTION} | ${file} | **FAILED** |\n"
+              SUMMARY="${SUMMARY}| ${SCRIPT_NAME} | ${SCRIPT_VERSION} | ${TYPE} | ${ACTION} | ${file} | **FAILED** |\n"
             fi
           done < /tmp/deploy_list.txt
 
@@ -590,9 +667,9 @@ jobs:
             echo ""
             echo "**Deployed:** ${SUCCESS} | **Failed:** ${FAILED}"
             echo ""
-            echo "| Script | Version | Action | Path | Status |"
-            echo "|--------|---------|--------|------|--------|"
-            cat /tmp/deploy_summary.txt 2>/dev/null || echo "| — | — | — | — | No results |"
+            echo "| Script | Version | Type | Action | Path | Status |"
+            echo "|--------|---------|------|--------|------|--------|"
+            cat /tmp/deploy_summary.txt 2>/dev/null || echo "| — | — | — | — | — | No results |"
             echo ""
             echo "**Commit:** ${{ github.sha }}"
           } >> $GITHUB_STEP_SUMMARY

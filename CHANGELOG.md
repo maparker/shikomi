@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-07-30 (bump-version.sh)
+
+### Added
+- **bump-version.sh** (v1.4.0): Recognize zsh-style scriptVersion= declarations (with or without readonly) alongside bash readonly SCRIPT_VERSION=; clarify that init falls back to header-anchor when no pipefail line exists; disambiguate CHANGELOG heading with script name when a version number collides with an existing entry
+
 ## [1.3.2] - 2026-07-08
 
 ### Fixed
@@ -32,17 +37,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Clarified shellcheck disable comments to instruct developers to remove them once the variable is used
 
-## [2.1.1] - 2026-06-19
+## [2.1.1] - 2026-06-19 (shikomi.sh)
 
 ### Fixed
-- Add SC2034 suppression for scaffolded variables and end-of-wizard note
+- **shikomi.sh** (v2.1.1): Add SC2034 suppression for scaffolded variables and end-of-wizard note
 
 ## [1.2.2] - 2026-04-29
 
 ### Fixed
 - Add History block support for EA scripts alongside CHANGELOG
 
-## [2.1.1] - 2026-04-01
+## [2.1.1] - 2026-04-01 (bump-version.sh)
 
 ### Fixed
 - **bump-version.sh** (v1.2.1): Auto-detect now selects the **most recently modified** versioned script instead of the first one alphabetically. When multiple `.sh` files with a `SCRIPT_VERSION` constant exist, the one you edited most recently is chosen — matching the intent of "bump the script I'm working on." A warning still lists all candidates and now indicates which was selected and why.
@@ -215,7 +220,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.4.0] - 2026-01-08
+## [1.4.0] - 2026-01-08 (shikomi.sh)
 
 ### Fixed
 - **shikomi.sh**: Initial attempt to fix versioning for new script creation (incomplete - fully resolved in 1.4.2)

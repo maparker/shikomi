@@ -34,6 +34,13 @@ function generate_ea_script() {
 # --- Script Metadata ---
 readonly SCRIPT_VERSION="${INITIAL_VERSION}"
 
+# Optional Jamf Pro EA metadata — parsed by deploy-to-jamf.yml if present.
+# Defaults (STRING / EXTENSION_ATTRIBUTES) apply if these lines are omitted.
+# Data type: STRING | INTEGER | DATE
+# JAMF_DATA_TYPE: STRING
+# Inventory display category: GENERAL | HARDWARE | OPERATING_SYSTEM | USER_AND_LOCATION | PURCHASING | EXTENSION_ATTRIBUTES
+# JAMF_DISPLAY_CATEGORY: EXTENSION_ATTRIBUTES
+
 # --- Static Configuration ---
 $(printf '%s\n' "${STATIC_VARS[@]}")
 

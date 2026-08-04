@@ -41,7 +41,31 @@ fi)
 
 ## Jamf Pro Setup
 
-### 1. Add Extension Attribute
+### If a Jamf Pro deploy workflow is configured (recommended)
+
+This repo's \`deploy-to-jamf.yml\` (if present — see \`.github/workflows/\`) reads
+Data Type and Inventory Display Category directly from this script's headers and
+creates or updates the Extension Attribute in Jamf Pro automatically on merge to
+main:
+
+\`\`\`bash
+# JAMF_DATA_TYPE: STRING
+# JAMF_DISPLAY_CATEGORY: EXTENSION_ATTRIBUTES
+\`\`\`
+
+Edit these two header lines (near \`readonly SCRIPT_VERSION\`) to match your
+attribute — \`JAMF_DATA_TYPE\` accepts \`STRING\`, \`INTEGER\`, or \`DATE\`;
+\`JAMF_DISPLAY_CATEGORY\` accepts \`GENERAL\`, \`HARDWARE\`, \`OPERATING_SYSTEM\`,
+\`USER_AND_LOCATION\`, \`PURCHASING\`, or \`EXTENSION_ATTRIBUTES\`. If omitted, the
+pipeline defaults to \`STRING\` / \`EXTENSION_ATTRIBUTES\`. Input Type is always
+\`SCRIPT\` for Shikomi-scaffolded EAs.
+
+Add a \`# JAMF_NAME: ...\` header if this EA's Jamf display name should differ
+from the filename (minus \`.sh\`) — required for pre-existing EAs whose Jamf name
+doesn't match the filename, to avoid the pipeline creating a duplicate.
+
+### If no deploy workflow exists (manual fallback)
+
 1. Log into Jamf Pro
 2. Navigate to **Settings** > **Computer Management** > **Extension Attributes**
 3. Click **+ New**

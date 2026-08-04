@@ -665,19 +665,19 @@ else
     if [[ "$add_workflow" =~ ^[Yy] ]]; then
         echo "Generating validation workflow..."
         generate_validate_workflow "."
+    fi
 
-        # Optional: Add Jamf Pro deployment workflow
-        if [[ -n "$FLAG_DEPLOY_WORKFLOW" ]]; then
-            add_deploy_workflow="$FLAG_DEPLOY_WORKFLOW"
-        elif [[ "$FLAG_AUTO" == true ]]; then
-            add_deploy_workflow="n"
-        else
-            read -rp "Also add a workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy_workflow
-        fi
-        if [[ "$add_deploy_workflow" =~ ^[Yy] ]]; then
-            echo "Generating Jamf Pro deploy workflow..."
-            generate_deploy_workflow "."
-        fi
+    # Optional: Add Jamf Pro deployment workflow (independent of validation workflow)
+    if [[ -n "$FLAG_DEPLOY_WORKFLOW" ]]; then
+        add_deploy_workflow="$FLAG_DEPLOY_WORKFLOW"
+    elif [[ "$FLAG_AUTO" == true ]]; then
+        add_deploy_workflow="n"
+    else
+        read -rp "Add a workflow to deploy scripts to Jamf Pro on merge? (y/n): " add_deploy_workflow
+    fi
+    if [[ "$add_deploy_workflow" =~ ^[Yy] ]]; then
+        echo "Generating Jamf Pro deploy workflow..."
+        generate_deploy_workflow "."
     fi
 
     stage_and_commit_new_repo

@@ -17,6 +17,13 @@ How to configure Jamf Pro and GitHub for automated script deployment.
 | Read Scripts | Yes |
 | Create Scripts | Yes |
 | Update Scripts | Yes |
+| Read Computer Extension Attributes | Yes (if deploying EAs) |
+| Create Computer Extension Attributes | Yes (if deploying EAs) |
+| Update Computer Extension Attributes | Yes (if deploying EAs) |
+
+The EA permissions are additive to the same role — no separate API Client is
+needed. The deploy workflow uses one OAuth token for both the Scripts API and
+the Extension Attribute API.
 
 6. Click **Save**
 
@@ -70,6 +77,13 @@ After merging your first pull request to `main`, check that the deployment succe
 
 **Note:** When updating, the workflow checks for both `install_app` and `install_app.sh` so it will find existing scripts regardless of naming convention.
 
+**For Extension Attributes** (files ending `_ea.sh`), go to **Settings >
+Computer Management > Extension Attributes** instead of **Scripts**; search by
+the filename minus `.sh` (e.g. `check_something_ea`) unless a `# JAMF_NAME:`
+header overrides it. Unlike Scripts, EA lookup has **no** `.sh`-suffix fallback
+retry — EA filenames always end `_ea.sh`, so there's no equivalent naming
+ambiguity to work around.
+
 ---
 
 ## How the Workflow Authenticates
@@ -84,9 +98,12 @@ POST /api/oauth/token ──────────────→  Validates c
                         ←──────────────
 Uses token for all
 subsequent API calls
-  GET  /api/v1/scripts  ─────────────→  Look up script by name
-  POST /api/v1/scripts  ─────────────→  Create new script
-  PUT  /api/v1/scripts/{id} ─────────→  Update existing script
+  GET  /api/v1/scripts                            ─────→  Look up script by name
+  POST /api/v1/scripts                            ─────→  Create new script
+  PUT  /api/v1/scripts/{id}                       ─────→  Update existing script
+  GET  /api/v1/computer-extension-attributes      ─────→  Look up EA by name
+  POST /api/v1/computer-extension-attributes      ─────→  Create new EA
+  PUT  /api/v1/computer-extension-attributes/{id} ─────→  Update existing EA
 ```
 
 ---
@@ -99,6 +116,7 @@ subsequent API calls
 | `Missing required secrets` | Secrets not configured | Add all three secrets to your repository (Settings > Secrets) |
 | `No versioned script found` | Script missing `SCRIPT_VERSION` | Ensure your script has `readonly SCRIPT_VERSION="x.y.z"` |
 | `Deployment failed (HTTP 403)` | Insufficient API permissions | Verify the API role has Read, Create, and Update Scripts permissions |
+| `Deployment failed (HTTP 403)` on an EA (`_ea.sh` file) | Missing EA permissions on the API Role | Verify Read/Create/Update Computer Extension Attributes permissions are granted (see step 1) |
 | `Deployment failed (HTTP 409)` | Script name conflict | Check for duplicate script names in Jamf Pro |
 
 ---
