@@ -58,7 +58,7 @@ Merge to main
 ┌─────────────┐     automatic     ┌─────────────────────┐
 │  CI checks  │ ────────────────► │  Deploy → TEST      │
 │  ShellCheck │                   │  jamf-test.company  │
-│  Gitleaks   │                   └──────────┬──────────┘
+│  Betterleaks   │                   └──────────┬──────────┘
 └─────────────┘                              │
                                     manual approval
                                              │
@@ -275,7 +275,7 @@ Add the repo-level tooling that `it_macos` is missing: a `.gitignore`, pre-commi
 **Requirements**
 
 - [ ] Add `.gitignore` covering secrets, binaries, and macOS system files (see scripting standards)
-- [ ] Add `.pre-commit-config.yaml` with enhanced hook set: gitleaks, shellcheck, trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files, check-merge-conflict, detect-private-key
+- [ ] Add `.pre-commit-config.yaml` with enhanced hook set: betterleaks, shellcheck, trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files, check-merge-conflict, detect-private-key
 - [ ] Run `pre-commit install` to activate hooks
 - [ ] Run `pre-commit run --all-files` and fix any immediate failures before proceeding
 

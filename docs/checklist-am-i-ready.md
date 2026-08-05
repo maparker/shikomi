@@ -33,10 +33,10 @@ Use this checklist before starting your first Shikomi project to make sure every
   # Authenticate: gh auth login
   ```
 
-- [ ] **Gitleaks** installed (for local scanning outside of hooks)
+- [ ] **Betterleaks** installed (for local scanning outside of hooks)
   ```bash
-  gitleaks version
-  # Install: brew install gitleaks
+  betterleaks version
+  # Install: brew install betterleaks
   ```
 
 ---
@@ -136,7 +136,7 @@ pre-commit --version 2>/dev/null && echo "  pre-commit: OK" || echo "  pre-commi
 echo "" && echo "--- Optional ---" && \
 gh --version 2>/dev/null | head -1 && echo "  GitHub CLI: OK" || echo "  GitHub CLI: not installed" && \
 op --version 2>/dev/null && echo "  1Password CLI: OK" || echo "  1Password CLI: not installed" && \
-gitleaks version 2>/dev/null && echo "  Gitleaks: OK" || echo "  Gitleaks: not installed"
+betterleaks version 2>/dev/null && echo "  Betterleaks: OK" || echo "  Betterleaks: not installed"
 ```
 
 ---

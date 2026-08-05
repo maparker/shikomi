@@ -663,7 +663,7 @@ New repositories must have pre-commit hooks configured. The **enhanced** set is 
 
 | Check | What It Does |
 |---|---|
-| gitleaks | Blocks secrets from being committed |
+| betterleaks | Blocks secrets from being committed |
 | shellcheck | Lints scripts at warning severity |
 | trailing-whitespace | Removes trailing spaces |
 | end-of-file-fixer | Ensures newline at end of file |

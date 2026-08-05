@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.4] - 2026-08-05
+
+### Fixed
+- Swap gitleaks for betterleaks in lib/git-setup.sh and lib/workflows.sh wizard code paths
+
 ## [1.3.0] - 2026-08-05
 
 ### Added

@@ -396,16 +396,15 @@ jobs:
           echo ""
           echo "All ${{ steps.changed.outputs.count }} script(s) passed ShellCheck"
 
-  gitleaks:
+  betterleaks:
     name: Secret Scanning
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Betterleaks
+        run: docker run --rm -v "${{ github.workspace }}:/repo" ghcr.io/betterleaks/betterleaks:latest git /repo -v
 WORKFLOW_EOF
 
     git add "$target_dir/.github/workflows/validate-scripts.yml"

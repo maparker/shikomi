@@ -91,11 +91,11 @@ function generate_precommit_config() {
     if [[ "$hook_level" == "enhanced" ]]; then
         cat > .pre-commit-config.yaml << 'EOF'
 repos:
-  # Secret scanning with gitleaks
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
+  # Secret scanning with betterleaks
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.7.3
     hooks:
-      - id: gitleaks
+      - id: betterleaks
 
   # Shell script linting (uses brew-installed shellcheck)
   - repo: local
@@ -123,10 +123,10 @@ EOF
     else
         cat > .pre-commit-config.yaml << 'EOF'
 repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.7.3
     hooks:
-      - id: gitleaks
+      - id: betterleaks
 EOF
         echo "Installing basic pre-commit hooks (secrets only)..."
     fi

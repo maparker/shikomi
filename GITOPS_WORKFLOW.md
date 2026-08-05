@@ -111,7 +111,7 @@ cat /var/log/my_awesome_script.log
 
 When you commit, pre-commit hooks run automatically on your machine before the commit is created:
 
-- **Gitleaks** scans for accidentally committed secrets (API keys, tokens, passwords)
+- **Betterleaks** scans for accidentally committed secrets (API keys, tokens, passwords)
 - **ShellCheck** validates your script for common bugs and style issues (enhanced mode)
 - Additional quality checks like trailing whitespace, YAML validation, and large file detection (enhanced mode)
 
@@ -125,8 +125,8 @@ If a hook fails, the commit is blocked with an actionable error message. Fix the
 ### What a Blocked Commit Looks Like
 
 ```
-gitleaks...............................................................Failed
-- hook id: gitleaks
+betterleaks...............................................................Failed
+- hook id: betterleaks
 - exit code: 1
 
 Finding:    API_KEY="sk-abc123..."
@@ -156,7 +156,7 @@ When the pull request is opened, the `validate-version.yml` workflow runs automa
 
 - **ShellCheck** lints the script in CI (catches anything missed locally)
 - **Version consistency** verifies the version in the script header, `SCRIPT_VERSION` constant, and README all match
-- **Gitleaks** scans for secrets at the PR level
+- **Betterleaks** scans for secrets at the PR level
 
 The pull request shows pass/fail status for each check. Reviewers can see exactly what passed and what failed before approving.
 
@@ -184,7 +184,7 @@ Branch protection must be set on each repo individually. There is no way for Shi
 
 If you are the only contributor to a repo, requiring PR approvals means you cannot approve your own pull requests. You have two options:
 
-1. **Skip the approval requirement** — still require status checks to pass, but don't require approvals. The CI checks (ShellCheck, version validation, Gitleaks) still catch problems. You just won't have a human gate.
+1. **Skip the approval requirement** — still require status checks to pass, but don't require approvals. The CI checks (ShellCheck, version validation, Betterleaks) still catch problems. You just won't have a human gate.
 2. **Use the PR workflow without branch protection** — work on feature branches, open PRs, let CI run, then merge yourself. This is discipline-based rather than enforcement-based, but the deploy workflow still only triggers on merge to main, so the workflow itself provides structure.
 
 The CI validation on PRs is the most universally useful gate. Branch protection with required approvals is the "team-scale" upgrade for when you have someone to review your work.
@@ -356,7 +356,7 @@ Then push, open a PR, and the cycle repeats.
 │  1. shikomi my_script     Scaffold the project              │
 │  2. Write your logic      Implement and test                │
 │  3. git commit            Pre-commit hooks validate         │
-│          │                (Gitleaks + ShellCheck)            │
+│          │                (Betterleaks + ShellCheck)            │
 │          │                                                  │
 │          │  BLOCKED if secrets or lint errors found          │
 │          ▼                                                  │
@@ -369,7 +369,7 @@ Then push, open a PR, and the cycle repeats.
 │                                                             │
 │  5. Pull Request          CI validation runs                │
 │          │                (ShellCheck + version check +      │
-│          │                 Gitleaks)                         │
+│          │                 Betterleaks)                         │
 │          │                                                  │
 │          │  BLOCKED if CI fails                              │
 │          ▼                                                  │

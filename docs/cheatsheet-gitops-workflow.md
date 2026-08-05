@@ -15,7 +15,7 @@ git commit ─────────┐
   ↓                 │
 git push ───────────┼────→ Pull Request opened
                     │        CI validates (ShellCheck,
-                    │        version check, Gitleaks)
+                    │        version check, Betterleaks)
                     │          ↓
                     │      Review + Approve
                     │          ↓
@@ -98,8 +98,8 @@ gh pr merge
 
 | Tier | Where | What Runs | Blocks |
 |------|-------|-----------|--------|
-| 1 | Your machine | Pre-commit hooks (Gitleaks, ShellCheck) | `git commit` |
-| 2 | GitHub | CI workflow (ShellCheck, version check, Gitleaks) | PR merge |
+| 1 | Your machine | Pre-commit hooks (Betterleaks, ShellCheck) | `git commit` |
+| 2 | GitHub | CI workflow (ShellCheck, version check, Betterleaks) | PR merge |
 
 ---
 
@@ -107,7 +107,7 @@ gh pr merge
 
 | Error | Fix |
 |-------|-----|
-| Gitleaks: secret detected | Move secret to 1Password or `~/.jamf_secrets` |
+| Betterleaks: secret detected | Move secret to 1Password or `~/.jamf_secrets` |
 | ShellCheck: warning | Follow the suggestion in the output (e.g. quote variables) |
 | Trailing whitespace | Remove trailing spaces from the flagged lines |
 | Large file detected | Remove the file or add it to `.gitignore` |

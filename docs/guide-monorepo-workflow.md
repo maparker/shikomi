@@ -44,7 +44,7 @@ Edit the generated script and replace the `# TODO` section with your implementat
 ### 3. Commit
 
 Pre-commit hooks run automatically when you commit:
-- **Gitleaks** scans for accidentally committed secrets
+- **Betterleaks** scans for accidentally committed secrets
 - **ShellCheck** validates script quality
 
 ```bash
@@ -65,7 +65,7 @@ gh pr create --title "Add my_new_script" --body "Description of what this script
 
 `validate-scripts.yml` runs automatically:
 - ShellCheck on all changed `.sh` files
-- Gitleaks secret scan
+- Betterleaks secret scan
 
 The PR shows pass/fail badges. Reviewers see what passed before approving.
 
@@ -258,7 +258,7 @@ Branch protection is what prevents anyone from bypassing the PR workflow and pus
 
 **For teams on GitHub Team/Enterprise:** Create an organization-level ruleset that applies to all repos so you don't have to configure it per-repo.
 
-**For solo admins on free GitHub accounts:** You can't approve your own PRs. Skip the approval requirement but still require status checks to pass. The CI checks (ShellCheck, Gitleaks) still catch problems automatically. Add the approval requirement later when you have a teammate to review your work.
+**For solo admins on free GitHub accounts:** You can't approve your own PRs. Skip the approval requirement but still require status checks to pass. The CI checks (ShellCheck, Betterleaks) still catch problems automatically. Add the approval requirement later when you have a teammate to review your work.
 
 ---
 

@@ -30,7 +30,7 @@ bump-version --version
 ### Install Optional Tools
 
 ```bash
-brew install pre-commit gh gitleaks 1password-cli
+brew install pre-commit gh betterleaks 1password-cli
 ```
 
 ---
@@ -83,8 +83,8 @@ Selection: 1 2 3
 Choose hook level - (b)asic [secrets only] or (e)nhanced [9 checks]? (b/e):
 ```
 
-- **Basic**: Gitleaks only (secret scanning)
-- **Enhanced**: Gitleaks + ShellCheck + 7 quality checks
+- **Basic**: Betterleaks only (secret scanning)
+- **Enhanced**: Betterleaks + ShellCheck + 7 quality checks
 
 ### 5. Optional GitHub Actions
 

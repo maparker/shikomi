@@ -24,7 +24,7 @@ Shikomi is an intelligent script scaffolding tool that generates production-read
 
 [#] **Security First**
 - Two-tier pre-commit hooks (basic: secrets only, enhanced: 9 checks)
-- Gitleaks integration to prevent secret commits
+- Betterleaks integration to prevent secret commits
 - ShellCheck linting for script quality (enhanced mode)
 - Smart secret detection and masking
 - 1Password CLI integration support
@@ -301,9 +301,9 @@ bump-version my_script.sh minor "Added new feature"
 # Output: Updating munkipkg version in: pkg/build-info.json
 ```
 
-### 3. `add_security_tools.sh` (v1.2.0)
+### 3. `add_security_tools.sh` (v1.3.0)
 Security tooling setup for existing repositories:
-- Installs Gitleaks for secret scanning
+- Installs Betterleaks for secret scanning
 - Configures pre-commit hooks (basic or enhanced)
 - Sets up GitHub Actions workflows (security checks)
 - Optional Jamf Pro deploy workflow
@@ -707,10 +707,10 @@ Secret scanning only - lightweight protection:
 ```yaml
 # .pre-commit-config.yaml
 repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.7.3
     hooks:
-      - id: gitleaks
+      - id: betterleaks
 ```
 
 #### Enhanced Hooks (Recommended)
@@ -718,10 +718,10 @@ Comprehensive security and quality suite with **9 checks**:
 ```yaml
 repos:
   # Secret scanning
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.7.3
     hooks:
-      - id: gitleaks
+      - id: betterleaks
 
   # Shell script linting
   - repo: https://github.com/shellcheck-py/shellcheck-py
@@ -794,11 +794,11 @@ Attending the **macOS GitOps** workshop? See the [Workshop Preparation Guide](do
 - [1Password CLI (`op`)](https://developer.1password.com/docs/cli/) - For 1Password secrets integration
 - [GitHub CLI (`gh`)](https://cli.github.com/) - For GitHub repo creation
 - [pre-commit](https://pre-commit.com/) - For security hooks
-- [Gitleaks](https://github.com/gitleaks/gitleaks) - For secret scanning
+- [Betterleaks](https://github.com/betterleaks/betterleaks) - For secret scanning
 
 Install optional tools:
 ```bash
-brew install 1password-cli gh pre-commit gitleaks
+brew install 1password-cli gh pre-commit betterleaks
 ```
 
 ---
