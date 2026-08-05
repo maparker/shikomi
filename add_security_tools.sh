@@ -2,16 +2,17 @@
 
 ################################################################################
 # SCRIPT:      add_security_tools.sh
-# VERSION:     1.2.0
+# VERSION:     1.3.0
 # AUTHOR:      Matt Parker
 # DATE:        2025-12-07
 # DESCRIPTION: Adds security tools and checks to an existing Git repository
-#              - Pre-commit hooks (gitleaks, shellcheck)
+#              - Pre-commit hooks (betterleaks, shellcheck)
 #              - GitHub Actions workflows
 #              - Pre-push version checks
 #              - Enhanced .gitignore
 ################################################################################
 # CHANGELOG
+# 1.3.0 - 2026-08-05 - Swap gitleaks for betterleaks (unmaintained upstream) in pre-commit hooks and CI workflow
 # 1.2.0 - 2026-03-22 - Added optional Jamf Pro deploy workflow for existing repos
 # 1.1.0 - 2026-03-11 - Added basic/enhanced pre-commit hook level prompt matching shikomi
 # 1.0.1 - 2026-01-19 - Fixed version template to prevent generated scripts from inheriting shikomi's version number
@@ -19,7 +20,7 @@
 ################################################################################
 
 # --- Script Metadata ---
-readonly SCRIPT_VERSION="1.2.0"
+readonly SCRIPT_VERSION="1.3.0"
 # shellcheck disable=SC2034
 readonly SCRIPT_NAME="add_security_tools"
 
@@ -37,7 +38,7 @@ if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     echo "Usage: $0"
     echo ""
     echo "Adds security tools to your Git repository:"
-    echo "  - Pre-commit hooks (gitleaks, shellcheck)"
+    echo "  - Pre-commit hooks (betterleaks, shellcheck)"
     echo "  - GitHub Actions workflows"
     echo "  - Enhanced .gitignore"
     echo ""
@@ -99,11 +100,11 @@ if [[ "$SKIP_PRECOMMIT" == false ]]; then
             # Enhanced: 9 hooks (secrets, linting, quality checks)
             cat > .pre-commit-config.yaml << 'EOF'
 repos:
-  # Secret scanning with gitleaks
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
+  # Secret scanning with betterleaks
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.7.3
     hooks:
-      - id: gitleaks
+      - id: betterleaks
 
   # Shell script linting (uses brew-installed shellcheck)
   - repo: local
@@ -129,13 +130,13 @@ repos:
 EOF
             echo "✓ Enhanced .pre-commit-config.yaml created (9 checks)"
         else
-            # Basic: Just gitleaks for secret scanning
+            # Basic: Just betterleaks for secret scanning
             cat > .pre-commit-config.yaml << 'EOF'
 repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.7.3
     hooks:
-      - id: gitleaks
+      - id: betterleaks
 EOF
             echo "✓ Basic .pre-commit-config.yaml created (secrets only)"
         fi
@@ -162,7 +163,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  gitleaks:
+  betterleaks:
     name: Secret Scanning
     runs-on: ubuntu-latest
     steps:
@@ -170,10 +171,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Betterleaks
+        run: docker run --rm -v "${{ github.workspace }}:/repo" ghcr.io/betterleaks/betterleaks:latest git /repo -v
 
   shellcheck:
     name: Shell Script Linting
@@ -597,9 +596,9 @@ echo ""
 echo "Added Security Tools:"
 if [[ "$SKIP_PRECOMMIT" == false ]]; then
     if [[ "${hook_level:-b}" =~ ^[Ee] ]]; then
-        echo "  ✓ Pre-commit hooks - enhanced (gitleaks, shellcheck, 7 quality checks)"
+        echo "  ✓ Pre-commit hooks - enhanced (betterleaks, shellcheck, 7 quality checks)"
     else
-        echo "  ✓ Pre-commit hooks - basic (gitleaks only)"
+        echo "  ✓ Pre-commit hooks - basic (betterleaks only)"
     fi
 fi
 echo "  ✓ GitHub Actions workflows (security checks)"

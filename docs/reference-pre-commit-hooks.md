@@ -8,7 +8,7 @@ A side-by-side comparison of basic and enhanced pre-commit hooks and how to reso
 
 | Hook | Basic | Enhanced | What It Catches |
 |------|:-----:|:--------:|-----------------|
-| **gitleaks** | Yes | Yes | Hardcoded secrets (API keys, tokens, passwords) |
+| **betterleaks** | Yes | Yes | Hardcoded secrets (API keys, tokens, passwords) |
 | **shellcheck** | - | Yes | Shell script bugs, quoting issues, syntax problems |
 | **trailing-whitespace** | - | Yes | Trailing spaces at end of lines |
 | **end-of-file-fixer** | - | Yes | Missing newline at end of file |
@@ -29,11 +29,11 @@ A side-by-side comparison of basic and enhanced pre-commit hooks and how to reso
 
 When a hook fails, the commit is blocked and you see output like this:
 
-### Secret Detected (Gitleaks)
+### Secret Detected (Betterleaks)
 
 ```
-gitleaks...............................................................Failed
-- hook id: gitleaks
+betterleaks.............................................................Failed
+- hook id: betterleaks
 - exit code: 1
 
 Finding:    API_KEY="your-secret-key-here"
@@ -153,7 +153,7 @@ pre-commit run --all-files
 ### Run a Specific Hook
 
 ```bash
-pre-commit run gitleaks --all-files
+pre-commit run betterleaks --all-files
 pre-commit run shellcheck --all-files
 ```
 
